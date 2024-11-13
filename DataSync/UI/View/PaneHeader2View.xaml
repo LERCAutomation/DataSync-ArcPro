@@ -1,0 +1,319 @@
+﻿<UserControl x:Class="DataSync.UI.PaneHeader2View"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:controls="clr-namespace:ArcGIS.Desktop.Framework.Controls;assembly=ArcGIS.Desktop.Framework"
+             xmlns:local="clr-namespace:DataSync.UI"
+             d:DataContext="{d:DesignInstance Type=local:PaneHeader2ViewModel}"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="300">
+
+    <DockPanel MinWidth="270"
+               Margin="6,6,6,6">
+
+        <Grid DockPanel.Dock="Top">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Name="GridTableSummary" Grid.Row="0" Margin="0,0,0,4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Label Name="LabelTableSummary"
+                       Content="Table Summary:"
+                       Grid.Row="0"
+                       Grid.Column="0"
+                       Margin="0,0,0,2"
+                       Padding="0"
+                       VerticalAlignment="Center" />
+                <TextBox Name="TextBoxTableSummary"
+                         Text="{Binding TableSummaryText}"
+                         Grid.Row="1"
+                         Grid.Column="0"
+                         Height="36"
+                         Margin="0,0,0,0"
+                         Padding="0"
+                         IsEnabled="False"
+                         VerticalAlignment="Top" />
+            </Grid>
+
+            <Grid Name="GridButtons" Grid.Row="1" Margin="0,4,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="24" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="58" />
+                </Grid.ColumnDefinitions>
+
+                <Button Name="ButtonCheck"
+                        Grid.Column="3"
+                        Margin="0,0,0,0"
+                        Padding="0"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Command="{Binding Path=CheckCommand}"
+                        IsCancel="False"
+                        IsDefault="False"
+                        IsEnabled="{Binding Path=CheckButtonEnabled}"
+                        Style="{DynamicResource Esri_SimpleButton}"
+                        TabIndex="4"
+                        Content="Compare"
+                        ToolTip="Compare the local layer with the remote table" />
+            </Grid>
+
+            <Grid Name="GridResultSummary" Grid.Row="2" Margin="0,4,0,4" Visibility="{Binding ResultVisibility}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="102" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Label Name="LabelResultSummary"
+                       Content="Result Summary:"
+                       Grid.Row="0"
+                       Grid.Column="0"
+                       Margin="0,0,0,2"
+                       Padding="0"
+                       VerticalAlignment="Center" />
+                <ListView Name="ListViewResultSummary"
+                          Grid.Row="1"
+                          Grid.Column="0"
+                          HorizontalContentAlignment="Right"
+                          ItemsSource="{Binding ResultSummaryList}"
+                          MouseDoubleClick="ListViewResultSummary_MouseDoubleClick"
+                          SelectionChanged="ListViewResultSummary_SelectionChanged"
+                          SelectedIndex="{Binding ResultSummaryListSelectedIndex}"
+                          SelectionMode="Single">
+                    <ListView.View>
+                        <GridView AllowsColumnReorder="False">
+                            <GridView.ColumnHeaderContainerStyle>
+                                <Style TargetType="GridViewColumnHeader">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </Style>
+                            </GridView.ColumnHeaderContainerStyle>
+                            <GridViewColumn DisplayMemberBinding="{Binding Type}" Header="Type" Width="62">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Center" TextAlignment="Center" Text="{Binding}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn DisplayMemberBinding="{Binding Count}" Header="Count" Width="80">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Right" TextAlignment="Right" Text="{Binding}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="IsSelected" Value="{Binding IsSelected}" />
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="true">
+                                    <Setter Property="Background" Value="LightSkyBlue" />
+                                    <Setter Property="BorderBrush" Value="DodgerBlue" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="DodgerBlue" />
+                                    <Setter Property="BorderBrush" Value="DodgerBlue" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                </ListView>
+            </Grid>
+
+            <Grid Name="GridResultDetail" Grid.Row="3" Margin="0,4,0,4" Visibility="{Binding ResultVisibility}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="{Binding ResultDetailListHeight}" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Label Name="LabelResultDetail"
+                       Content="Result Detail:"
+                       Grid.Row="0"
+                       Grid.Column="0"
+                       Margin="0,0,0,2"
+                       Padding="0"
+                       VerticalAlignment="Center" />
+                <ListView Name="ListViewResultDetail"
+                          Grid.Row="1"
+                          Grid.Column="0"
+                          HorizontalContentAlignment="Stretch"
+                          ItemsSource="{Binding ResultDetailList}"
+                          MouseDoubleClick="ListViewResultDetail_MouseDoubleClick"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                          SelectionChanged="ListViewResultDetail_SelectionChanged"
+                          SelectedIndex="{Binding ResultDetailListSelectedIndex}"
+                          SelectionMode="Single">
+                    <ListView.View>
+                        <GridView AllowsColumnReorder="False">
+                            <GridView.ColumnHeaderContainerStyle>
+                                <Style TargetType="GridViewColumnHeader">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </Style>
+                            </GridView.ColumnHeaderContainerStyle>
+                            <GridViewColumn DisplayMemberBinding="{Binding ResultType}" Header="Type" Width="62">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Stretch" Text="{Binding}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn DisplayMemberBinding="{Binding NewRef}" Header="Ref" Width="80">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Stretch" Text="{Binding}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn DisplayMemberBinding="{Binding OldRef}" Header="Old Ref" Width="80">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Stretch" Text="{Binding}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn DisplayMemberBinding="{Binding NewArea}" Header="Area" Width="64">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn DisplayMemberBinding="{Binding OldArea}" Header="Old Area" Width="64">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="IsSelected" Value="{Binding IsSelected}" />
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="true">
+                                    <Setter Property="Background" Value="LightSkyBlue" />
+                                    <Setter Property="BorderBrush" Value="DodgerBlue" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="DodgerBlue" />
+                                    <Setter Property="BorderBrush" Value="DodgerBlue" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                </ListView>
+
+                <Button Name="ButtonResultDetailListExpand"
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Margin="0,0,0,0"
+                        Padding="0"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Width="18"
+                        Height="18"
+                        VerticalAlignment="Bottom"
+                        HorizontalAlignment="Right"
+                        BorderBrush="LightBlue"
+                        Command="{Binding Path=ResultDetailListExpandCommand}"
+                        IsCancel="False"
+                        IsDefault="False"
+                        Focusable="False"
+                        IsEnabled="True"
+                        Visibility="{Binding Path=ResultDetailListExpandButtonVisibility}"
+                        IsTabStop="False"
+                        Style="{DynamicResource Esri_SimpleButton}"
+                        Content="{Binding Path=ResultDetailListExpandButtonContent}"
+                        ToolTip="Expand/Collapse the result summary list" />
+            </Grid>
+
+            <Grid Name="GridOptions" Grid.Row="4" Margin="0,4,0,4" Visibility="{Binding OptionsVisibility}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <CheckBox Name="CheckBoxClearLogFile"
+                          Grid.Row="2"
+                          Grid.Column="1"
+                          Margin="0,4,4,0"
+                          Padding="0"
+                          HorizontalAlignment="Left"
+                          VerticalAlignment="Center"
+                          ToolTip="Clear the log file before the process starts?"
+                          IsChecked="{Binding ClearLogFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <Label Name="LabelClearLogFile"
+                       Content="Clear log file?"
+                       Grid.Row="2"
+                       Grid.Column="2"
+                       Margin="2,4,0,0"
+                       Padding="0"
+                       VerticalAlignment="Center" />
+
+                <CheckBox Name="CheckBoxOpenLogFile"
+                          Grid.Row="2"
+                          Grid.Column="5"
+                          Margin="0,4,4,0"
+                          Padding="0"
+                          HorizontalAlignment="Left"
+                          VerticalAlignment="Center"
+                          ToolTip="Open the log file when the process has complete?"
+                          IsChecked="{Binding OpenLogFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <Label Name="LabelOpenLogFile"
+                       Content="Open log file when run?"
+                       Grid.Row="2"
+                       Grid.Column="6"
+                       Margin="2,4,0,0"
+                       Padding="0"
+                       VerticalAlignment="Center" />
+            </Grid>
+
+            <controls:MessageLabel
+                Grid.Row="5"
+                Margin="0,8,0,0"
+                Height="24"
+                MessageType="{Binding Path=MessageLevel}"
+                Severity="High"
+                ShowHelp="False"
+                Content="{Binding Path=Message}"
+                CanClose="False"
+                Visibility="{Binding Path=HasMessage}" />
+        </Grid>
+    </DockPanel>
+</UserControl>

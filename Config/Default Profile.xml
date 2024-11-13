@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+WARNING: This file should be changed carefully and a backup should be
+taken before any changes so that they can be backed out.  Changed lines
+can also be commented out as below.
+-->
+
+<!--
+This config file contains all the variables used by the DataSync
+ArcGIS Pro add-in.
+
+The 'configuration' node is the 'root' node and signifies the start of the
+contents of the configuration file.
+
+The 'DataSync' node contains all of the entries relating to the
+ArcGIS  Pro add-in variables.
+
+Each entry relates to a file, folder, table name, column name or SQL statement
+used by the ArcGIS Pro add-in to select and export GIS data for partners.
+-->
+
+<configuration>
+<DataSync>
+
+  <!-- The existing file location where log files will be saved with output messages. -->
+  <LogFilePath>
+	<value>H:\Data\Thames\ExtractorExtracts\Logfiles</value>
+  </LogFilePath>
+
+  <!-- The location of the SDE file that specifies which SQL Server database to connect to. -->
+  <SDEFile>
+	<value>D:\Data Tools\DataSync\Config\OpenSpace.sde</value>
+  </SDEFile>
+
+  <!-- The schema used in the SQL Server database. -->
+  <DatabaseSchema>
+	<value>dbo</value>
+  </DatabaseSchema>
+
+  <!-- The stored procedure to execute spatial selection in SQL Server. -->
+  <CheckStoredProcedure>
+	<value>AFSelectSppRecords</value>
+  </CheckStoredProcedure>
+
+  <!-- The stored procedure to execute non-spatial subset selection in SQL Server. -->
+  <UploadStoredProcedure>
+	<value>AFSelectSppSubset2</value>
+  </UploadStoredProcedure>
+
+  <!-- The stored procedure to clear selection in SQL Server. -->
+  <ClearStoredProcedure>
+	<value>HLClearSpatialSubset</value>
+  </ClearStoredProcedure>
+
+  <!-- The name of the partner GIS layer in SQL Server used to select the records. -->
+  <LocalTable>
+	<value>CombinedExtractPolygons</value>
+  </LocalTable>
+
+  <!-- The name of the column in the partner GIS layer containing the partner name passed to SQL
+       Server by the tool to use as the partner's boundary for selecting the records. -->
+  <RemoteTable>
+	<value>PartnerName</value>
+  </RemoteTable>
+
+  <!-- The name of the column in the partner GIS layer containing the abbreviated name passed to
+       SQL Server by the tool to use as the sub-folder name for the destination of extracted
+       records. -->
+  <KeyColumn>
+	<value>ShortName</value>
+  </KeyColumn>
+
+  <!-- The name of the column in the partner GIS layer containing the spatial geometry. -->
+  <SpatialColumn>
+	<value>Shape</value>
+  </SpatialColumn>
+
+  <!-- By default, should an existing log file be cleared? -->
+  <DefaultClearLogFile>
+	<value>Yes</value>
+  </DefaultClearLogFile>
+
+  <!-- By default, should the log file be opened after running. -->
+  <DefaultOpenLogFile>
+  	<value>Yes</value>
+  </DefaultOpenLogFile>
+
+</DataSync>
+</configuration>
