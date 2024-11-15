@@ -374,7 +374,7 @@ namespace DataSync.UI
             {
                 DockpaneVisibility = Visibility.Visible;
 
-                // Reload the details of the local and remote tables.
+                // Reload the details of the local and remote tables (don't wait).
                 if (MapView.Active != _activeMapView)
                     _paneH2VM?.LoadTableDetailsAsync(true, false);
 

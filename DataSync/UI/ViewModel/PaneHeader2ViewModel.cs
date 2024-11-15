@@ -53,7 +53,6 @@ namespace DataSync.UI
         private bool _tablesLoaded = false;
         private bool _syncErrors = false;
         private bool _checkHasRun = false;
-        private bool _remoteLayerAdded = false;
 
         private string _logFilePath;
         private string _logFile;
@@ -71,8 +70,11 @@ namespace DataSync.UI
         private string _remoteLayer;
         private string _keyColumn;
         private string _spatialColumn;
-        private long _localCount;
-        private long _remoteCount;
+
+        private long _localRows;
+        private long _localBlankKeys;
+        private long _remoteRows;
+        private long _remoteBlankKeys;
 
         private List<ResultSummary> _resultSummary;
         private List<ResultDetail> _resultDetail;
@@ -237,8 +239,7 @@ namespace DataSync.UI
         {
             get
             {
-                //TODO: Set number of rows before button is shown.
-                if ((_resultDetailList == null) || (_resultDetailList.Count < 9))
+                if ((_resultDetailList == null) || (_resultDetailList.Count < 19))
                     return Visibility.Hidden;
                 else
                     return Visibility.Visible;
@@ -462,7 +463,7 @@ namespace DataSync.UI
                 string type = resultSummary.Type;
 
                 // Get the list of result details for the selected result type.
-                List<ResultDetail> resultDetail = _resultDetail.Where(r => r.ResultType == type).ToList();
+                List<ResultDetail> resultDetail = _resultDetail.Where(r => r.Type == type).ToList();
 
                 // Load the result details for selected type.
                 ResultDetailList = new ObservableCollection<ResultDetail>(resultDetail);
@@ -475,6 +476,8 @@ namespace DataSync.UI
                         detail.IsSelected = false;
                     }
                 }
+
+                OnPropertyChanged(nameof(ResultDetailListHeight));
             }
         }
 
@@ -515,7 +518,13 @@ namespace DataSync.UI
                 ResultDetail resultDetail = _resultDetailList[value];
 
                 // Get the type of the selected result.
-                string resultType = resultDetail.ResultType;
+                string resultType = resultDetail.Type;
+
+                // Clear the local layer features selection (don't wait).
+                _mapFunctions.ClearLayerSelectionAsync(_localLayer);
+
+                // Clear the local layer features selection (don't wait).
+                _mapFunctions.ClearLayerSelectionAsync(_remoteLayer);
 
                 // If the result type is a deleted feature.
                 if (resultType == "Deleted")
@@ -546,8 +555,8 @@ namespace DataSync.UI
         {
             get
             {
-                if (_resultDetailList == null || _resultDetailList.Count == 0)
-                    return 422;
+                if ((_resultDetailList == null) || (_resultDetailList.Count < 19))
+                    return 360;
                 else
                     return _resultDetailListHeight;
             }
@@ -749,12 +758,34 @@ namespace DataSync.UI
                 return;
             }
 
-            // Set the local and remote row counts.
-            string localFeatures = _localCount < 0 ? "Error counting local features" : string.Format("{0} local features", _localCount.ToString());
-            string remoteFeatures = _remoteCount < 0 ? "Error counting remote features" : string.Format("{0} remote features", _remoteCount.ToString());
+            // Set the local row counts.
+            string localFeatures;
+            if (_localRows < 0)
+                localFeatures = "Error counting local features";    //string.Format("{0:n0}", 
+            else
+                localFeatures = string.Format("{0:n0} local features", _localRows);
+
+            if (_localBlankKeys > 0)
+                localFeatures += string.Format(" ({0:n0} with null or blank key)", _localBlankKeys);
+
+            // Set the remote row counts.
+            string remoteFeatures;
+            if (_remoteRows < 0)
+                remoteFeatures = "Error counting remote features";
+            else
+                remoteFeatures = string.Format("{0:n0} remote features", _remoteRows);
+
+            if (_remoteBlankKeys > 0)
+                remoteFeatures += string.Format(" ({0:n0} with null or blank key)", _remoteBlankKeys);
 
             // Display the local and remote row counts.
             TableSummaryText = string.Format("{0}\r\n{1}", localFeatures, remoteFeatures);
+
+            // Report any null or blank keys.
+            if (_localBlankKeys > 0)
+                ShowMessage(string.Format("{0:n0} local feature{1} with null or blank key{1}", _localBlankKeys, _localBlankKeys > 1 ? "s" : ""), MessageType.Warning);
+            else if (_remoteBlankKeys > 0)
+                ShowMessage(string.Format("{0:n0} remote feature{1} with null or blank key{1}", _remoteBlankKeys, _remoteBlankKeys > 1 ? "s" : ""), MessageType.Warning);
         }
 
         /// <summary>
@@ -776,27 +807,29 @@ namespace DataSync.UI
                 return "No active map open.";
 
             // Find the map layer by name.
-            FeatureLayer localLayer = _mapFunctions.FindLayer(_localLayer);
+            FeatureLayer LocalFeatureLayer = _mapFunctions.FindLayer(_localLayer);
 
             // Check the local layer is loaded.
-            if (localLayer == null)
+            if (LocalFeatureLayer == null)
                 return "Local layer '" + _localLayer + "' not found.";
 
+            // Get the full local layer path (in case it's nested in one or more groups).
+            string localLayerPath = _mapFunctions.GetLayerPath(_localLayer);
+
             // Check the spatial column is in the layer.
-            if (!await _mapFunctions.FieldExistsAsync(_localLayer, _spatialColumn))
+            if (!await _mapFunctions.FieldExistsAsync(localLayerPath, _spatialColumn))
                 return string.Format("Key column '{0}' not found in local layer '{1}'", _keyColumn, _localLayer);
 
             // Check the key column is in the layer.
-            if (!await _mapFunctions.FieldExistsAsync(_localLayer, _keyColumn))
+            if (!await _mapFunctions.FieldExistsAsync(localLayerPath, _keyColumn))
                 return string.Format("Spatial column '{0}' not found in local layer '{1}'", _keyColumn, _localLayer);
 
             // Count the number of rows in the layer.
-            _localCount = await ArcGISFunctions.CountFeaturesAsync(localLayer);
+            _localRows = await ArcGISFunctions.CountFeaturesAsync(LocalFeatureLayer, null);
 
-            //TODO - Check for null geometry?
-            //// Check for any rows with null geometry.
-            //string whereClause = _spatialColumn + ' IS NULL';
-            //await _mapFunctions.SelectLayerByAttributesAsync(layerName, whereClause, SelectionCombinationMethod.New);
+            // Count the number of rows with null/blank keys.
+            string whereClause = "(" + _keyColumn + " IS NULL OR " + _keyColumn + " = '')";
+            _localBlankKeys = await ArcGISFunctions.CountFeaturesAsync(LocalFeatureLayer, whereClause);
 
             return null;
         }
@@ -807,6 +840,11 @@ namespace DataSync.UI
         /// <returns>string: error message</returns>
         public async Task<string> LoadRemoteDetailsAsync()
         {
+            // Check if there is an active map. There's no point loading the remote details
+            // when we can't load the local details.
+            if (_mapFunctions.MapName == null)
+                return null;
+
             // Check if the feature class exists.
             if (!await _sqlFunctions.FeatureClassExistsAsync(_remoteTable))
                 return "Remote table '" + _remoteTable + "' not found.";
@@ -816,16 +854,15 @@ namespace DataSync.UI
                 return string.Format("Key column '{0}' not found in remote table '{1}'", _keyColumn, _remoteTable);
 
             // Check the key column is in the table.
-            if (!await _mapFunctions.FieldExistsAsync(_remoteTable, _keyColumn))
+            if (!await _sqlFunctions.FieldExistsAsync(_remoteTable, _keyColumn))
                 return string.Format("Spatial column '{0}' not found in remote table '{1}'", _keyColumn, _remoteTable);
 
             // Count the number of rows in the remote table.
-            _remoteCount = await _sqlFunctions.FeatureClassCountRowsAsync(_remoteTable);
+            _remoteRows = await _sqlFunctions.FeatureClassCountRowsAsync(_remoteTable, null);
 
-            //TODO - Check for null geometry?
-            //// Check for any rows with null geometry.
-            //string whereClause = _spatialColumn + ' IS NULL';
-            //await _mapFunctions.SelectLayerByAttributesAsync(_remoteTable, whereClause, SelectionCombinationMethod.New);
+            // Count the number of rows in the layer.
+            string whereClause = "(" + _keyColumn + " IS NULL OR " + _keyColumn + " = '')";
+            _remoteBlankKeys = await _sqlFunctions.FeatureClassCountRowsAsync(_remoteTable, whereClause);
 
             return null;
         }
@@ -948,8 +985,6 @@ namespace DataSync.UI
             // Check if the remote map layer is loaded.
             if (_mapFunctions.FindLayer(_remoteLayer) == null)
             {
-                _remoteLayerAdded = false;
-
                 FileFunctions.WriteLine(_logFile, "Adding remote layer to map.");
 
                 // Get the position of the local layer in the map.
@@ -962,14 +997,11 @@ namespace DataSync.UI
                     //_extractErrors = true;
                     return false;
                 }
-
-                // Flag that the remote layer has been added to the map.
-                _remoteLayerAdded = true;
             }
 
-            _dockPane.ProgressUpdate("Checking updates in local layer", -1, -1);
+            _dockPane.ProgressUpdate("Comparing local layer and remote table", -1, -1);
 
-            FileFunctions.WriteLine(_logFile, "Checking updates in local layer ...");
+            FileFunctions.WriteLine(_logFile, "Comparing local layer and remote table ...");
 
             string resultsTable = _remoteTable + "_SYNC";
 
@@ -983,29 +1015,35 @@ namespace DataSync.UI
             // Check the results table has been created.
             if (resultsCount < 0)
             {
-                FileFunctions.WriteLine(_logFile, "Error: Checking updates in local layer.");
+                FileFunctions.WriteLine(_logFile, "Error: Comparing local layer and remote table.");
                 //_extractErrors = true;
                 return false;
             }
 
-            FileFunctions.WriteLine(_logFile, "Check of updates complete.");
+            FileFunctions.WriteLine(_logFile, "Comparing of local layer and remote table complete.");
 
             _dockPane.ProgressUpdate(null, -1, -1);
 
             // Get all of the sync results.
-            string resultTypeColumn = "Type";
+            string typeColumn = "Type";
+            string orderColumn = "Order";
+            string descColumn = "Desc";
             string newRefColumn = "Ref";
             string oldRefColumn = "RefOld";
             string newAreaColumn = "Area";
             string oldAreaColumn = "AreaOld";
-            _resultDetail = await _sqlFunctions.GetSyncResultsAsync(resultsTable, resultTypeColumn, newRefColumn, oldRefColumn, newAreaColumn, oldAreaColumn);
+            _resultDetail = await _sqlFunctions.GetSyncResultsAsync(resultsTable, typeColumn, orderColumn, descColumn, newRefColumn, oldRefColumn, newAreaColumn, oldAreaColumn);
 
             // Get a summary of the results.
-            _resultSummary = _resultDetail.GroupBy(t => t.ResultType).Select(s => new ResultSummary()
-            {
-                Type = s.Key,
-                Count = s.Count()
-            }).OrderBy(r => r.Type).ToList();
+            _resultSummary = (from r in _resultDetail
+                              group r by new { r.Type, r.Desc }
+                              into grp
+                              select new ResultSummary()
+                              {
+                                  Type = grp.Key.Type,
+                                  Count = grp.Count(),
+                                  Desc = grp.Key.Desc
+                              }).ToList();
 
             // Set the list of result summary.
             ResultSummaryList = new ObservableCollection<ResultSummary>(_resultSummary);
@@ -1032,7 +1070,7 @@ namespace DataSync.UI
             _dockPane.ProgressUpdate("Applying updates to remote table", -1, -1);
 
             // Execute the stored procedure to update the remote table.
-            if (await PerformSQLUpdateAsync(_defaultSchema, _remoteTable))
+            if (!await PerformSQLUpdateAsync(_defaultSchema, _remoteTable))
             {
                 FileFunctions.WriteLine(_logFile, "Error: Applying updates to remote table.");
                 _syncErrors = true;
@@ -1048,16 +1086,16 @@ namespace DataSync.UI
             }
 
             // Count the number of rows in the remote table.
-            _remoteCount = await _sqlFunctions.FeatureClassCountRowsAsync(_remoteTable);
+            _remoteRows = await _sqlFunctions.FeatureClassCountRowsAsync(_remoteTable, null);
 
-            if (_remoteCount <= 0)
+            if (_remoteRows <= 0)
             {
                 FileFunctions.WriteLine(_logFile, "Error: Updated remote table is empty.");
                 _syncErrors = true;
                 return false;
             }
 
-            FileFunctions.WriteLine(_logFile, _remoteCount.ToString() + " rows in updated remote table.");
+            FileFunctions.WriteLine(_logFile, _remoteRows.ToString() + " rows in updated remote table.");
             FileFunctions.WriteLine(_logFile, "Updates to remote table complete.");
             FileFunctions.WriteLine(_logFile, "----------------------------------------------------------------------");
 
@@ -1154,7 +1192,6 @@ namespace DataSync.UI
             sqlCmd.Append(string.Format(", '{0}'", remoteTable));
             sqlCmd.Append(string.Format(", '{0}'", keyColumn));
             sqlCmd.Append(string.Format(", '{0}'", spatialColumn));
-            sqlCmd.Append(string.Format(", '{0}'", spatialColumn));
 
             string sqlOutputTable = schema + '.' + resultsTable;
 
@@ -1208,6 +1245,8 @@ namespace DataSync.UI
             sqlCmd = sqlCmd.Append(string.Format("EXECUTE {0}", storedProcedureName));
             sqlCmd.Append(string.Format(" '{0}'", schema));
             sqlCmd.Append(string.Format(", '{0}'", remoteTable));
+            sqlCmd.Append(string.Format(", '{0}'", "SiteID"));
+            sqlCmd.Append(string.Format(", '{0}'", "Shape"));
 
             try
             {
@@ -1378,7 +1417,7 @@ namespace DataSync.UI
         private void ResultDetailListExpandCommandClick(object param)
         {
             if (_resultDetailListHeight == null)
-                _resultDetailListHeight = 422;
+                _resultDetailListHeight = 360;
             else
                 _resultDetailListHeight = null;
 
@@ -1387,47 +1426,6 @@ namespace DataSync.UI
         }
 
         #endregion ResultDetailListExpand Command
-
-        //#region SQL
-
-        ///// <summary>
-        ///// Check if the table contains a spatial column in the columns text.
-        ///// </summary>
-        ///// <param name="tableName"></param>
-        ///// <param name="columnsText"></param>
-        ///// <returns>string: spatial column</returns>
-        //internal async Task<string> IsSQLTableSpatialAsync(string tableName, string columnsText)
-        //{
-        //    string[] geometryFields = ["SP_GEOMETRY", "Shape"]; // Expand as required.
-
-        //    // Get the list of field names in the selected table.
-        //    List<string> fieldsList = await _sqlFunctions.GetFieldNamesListAsync(tableName);
-
-        //    // Loop through the geometry fields looking for a match.
-        //    foreach (string geomField in geometryFields)
-        //    {
-        //        // If the columns text contains the geometry field.
-        //        if (columnsText.Contains(geomField, StringComparison.OrdinalIgnoreCase))
-        //        {
-        //            return geomField;
-        //        }
-        //        // If "*" is used check for the existence of the geometry field in the table.
-        //        else if (columnsText.Equals("*", StringComparison.OrdinalIgnoreCase))
-        //        {
-        //            foreach (string fieldName in fieldsList)
-        //            {
-        //                // If the column text contains the geometry field.
-        //                if (fieldName.Equals(geomField, StringComparison.OrdinalIgnoreCase))
-        //                    return geomField;
-        //            }
-        //        }
-        //    }
-
-        //    // No geometry column found.
-        //    return null;
-        //}
-
-        //#endregion SQL
 
         #region Debugging Aides
 
@@ -1502,6 +1500,8 @@ namespace DataSync.UI
 
         public int Count { get; set; }
 
+        public string Desc { get; set; }
+
         private bool _isSelected;
 
         public bool IsSelected
@@ -1529,9 +1529,10 @@ namespace DataSync.UI
             Type = summaryType;
         }
 
-        public ResultSummary(string summaryType, int summaryCount)
+        public ResultSummary(string summaryType, int OrderBy, int summaryCount)
         {
             Type = summaryType;
+            OrderBy = OrderBy;
             Count = summaryCount;
         }
 
@@ -1574,7 +1575,11 @@ namespace DataSync.UI
     {
         #region Fields
 
-        public string ResultType { get; set; }
+        public string Type { get; set; }
+
+        public int Order { get; set; }
+
+        public string Desc { get; set; }
 
         public string NewRef { get; set; }
 
@@ -1606,14 +1611,14 @@ namespace DataSync.UI
             // constructor takes no arguments.
         }
 
-        public ResultDetail(string resultType)
+        public ResultDetail(string type)
         {
-            ResultType = resultType;
+            Type = type;
         }
 
-        public ResultDetail(string resultType, string newRef, string oldRef, float newArea, float oldArea)
+        public ResultDetail(string type, string newRef, string oldRef, float newArea, float oldArea)
         {
-            ResultType = resultType;
+            Type = type;
             NewRef = newRef;
             OldRef = oldRef;
             NewArea = newArea.ToString();

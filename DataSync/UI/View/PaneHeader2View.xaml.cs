@@ -154,7 +154,7 @@ namespace DataSync.UI
 
                     // Display the selected result detail item.
                     string strText = string.Format("{0}\r\n\r\n{1}{2}{3}{4}",
-                        resultDetail.ResultType, newRef, oldRef, newArea, oldArea);
+                        resultDetail.Type, newRef, oldRef, newArea, oldArea);
                     MessageBox.Show(strText, "Result Details", MessageBoxButton.OK);
                 }
             }

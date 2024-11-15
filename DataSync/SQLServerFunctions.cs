@@ -22,7 +22,6 @@
 using ArcGIS.Core.Data;
 using ArcGIS.Core.Data.DDL;
 using ArcGIS.Core.Data.Exceptions;
-using ArcGIS.Core.Internal.CIM;
 using ArcGIS.Desktop.Framework.Threading.Tasks;
 using DataSync.UI;
 using System;
@@ -99,11 +98,13 @@ namespace DataTools
                 catch (GeodatabaseNotFoundOrOpenedException)
                 {
                     // Geodatabase throws an exception.
+                    //MessageBox.Show("Error: Geodatabase not Found or opened (2). " + ex.Message, "Data Selector", MessageBoxButton.OK, MessageBoxImage.Error);
                     _sdeConnectionValid = false;
                 }
                 catch (Exception)
                 {
                     // Unexpected error.
+                    //MessageBox.Show("Error: Unexpected error opening geodatabase (2). " + ex.Message, "Data Selector", MessageBoxButton.OK, MessageBoxImage.Error);
                     _sdeConnectionValid = false;
                 }
             });
@@ -132,11 +133,13 @@ namespace DataTools
                 catch (GeodatabaseNotFoundOrOpenedException)
                 {
                     // Geodatabase throws an exception.
+                    //throw new("Error: Geodatabase not Found or opened. " + ex.Message);
                     return;
                 }
                 catch (Exception)
                 {
                     // Unexpected error.
+                    //throw new("Error: Unexpected error opening geodatabase. " + ex.Message);
                     return;
                 }
             });
@@ -148,22 +151,24 @@ namespace DataTools
         /// Get all of the feature class and table names from the geodatabase.
         /// </summary>
         /// <returns></returns>
-        public async Task GetTableNamesAsync()
+        public async Task<bool> GetTableNamesAsync(string objectsTable)
         {
             _tableNames = [];
+
+            bool success = false;
 
             // Open a connection to the geodatabase if not already open.
             if (!GeodatabaseOpen) await OpenGeodatabase();
 
             // If still not open.
-            if (!GeodatabaseOpen) return;
+            if (!GeodatabaseOpen) return false;
 
             await QueuedTask.Run(() =>
             {
                 try
                 {
                     // Open the table.
-                    using Table table = _geodatabase.OpenDataset<Table>("Spatial_Objects");
+                    using Table table = _geodatabase.OpenDataset<Table>(objectsTable);
 
                     // Create a row cursor.
                     RowCursor rowCursor;
@@ -183,20 +188,26 @@ namespace DataTools
                         // Add the name of the table/view to the list.
                         _tableNames.Add(tableViewName);
                     }
+
+                    rowCursor.Dispose();
                 }
                 catch (GeodatabaseTableException)
                 {
                     // OpenDataset throws an exception if the table doesn't exist.
+                    //MessageBox.Show("Error: Geodatabase table not found (3). " + ex.Message, "Data Selector", MessageBoxButton.OK, MessageBoxImage.Error);
+                    success = false;
                     return;
                 }
                 catch (Exception)
                 {
                     // Unexpected error.
+                    //MessageBox.Show("Error: Unexpected error opening geodatabase. " + ex.Message, "Data Selector", MessageBoxButton.OK, MessageBoxImage.Error);
+                    success = false;
                     return;
                 }
             });
 
-            return;
+            return success;
         }
 
         /// <summary>
@@ -340,7 +351,7 @@ namespace DataTools
         /// <param name="fullPath"></param>
         /// <param name="fieldName"></param>
         /// <returns>bool</returns>
-        public static async Task<bool> FieldExistsAsync(string fullPath, string fieldName)
+        public async Task<bool> FieldExistsAsync(string fullPath, string fieldName)
         {
             // Get the file name from the specified path.
             string fileName = FileFunctions.GetFileName(fullPath);
@@ -349,7 +360,7 @@ namespace DataTools
             if (!GeodatabaseOpen) await OpenGeodatabase();
 
             // If still not open.
-            if (!GeodatabaseOpen) return fields;
+            if (!GeodatabaseOpen) return false;
 
             bool fldFound = false;
 
@@ -363,7 +374,7 @@ namespace DataTools
                     if (tableDefinition == null)
                         return;
 
-                    Field field = tableDefinition.GetFields().First(x => x.Name.Equals(fieldName) || x.AliasName.Equals(fieldName));
+                    using Field field = tableDefinition.GetFields().First(x => x.Name.Equals(fieldName) || x.AliasName.Equals(fieldName));
 
                     if (field != null)
                         fldFound = true;
@@ -371,12 +382,12 @@ namespace DataTools
                 catch (GeodatabaseNotFoundOrOpenedException)
                 {
                     // Handle Exception.
-                    return false;
+                    return;
                 }
                 catch (GeodatabaseTableException)
                 {
                     // Handle Exception.
-                    return false;
+                    return;
                 }
             });
 
@@ -387,7 +398,8 @@ namespace DataTools
         /// Get all of the table sync results from the geodatabase.
         /// </summary>
         /// <returns></returns>
-        public async Task<List<ResultDetail>> GetSyncResultsAsync(string resultsTable, string resultTypeColumn, string newRefColumn, string oldRefColumn, string newAreaColumn, string oldAreaColumn)
+        public async Task<List<ResultDetail>> GetSyncResultsAsync(string resultsTable, string typeColumn, string orderColumn,
+            string descColumn, string newRefColumn, string oldRefColumn, string newAreaColumn, string oldAreaColumn)
         {
             // Check there is an input remote table name.
             if (String.IsNullOrEmpty(resultsTable))
@@ -414,11 +426,11 @@ namespace DataTools
                     // Create a query filter using the partner clause.
                     ArcGIS.Core.Data.QueryFilter queryFilter = new()
                     {
-                        PostfixClause = "ORDER BY " + resultTypeColumn + "," + newRefColumn
+                        PostfixClause = "ORDER BY [" + orderColumn + "]"
                     };
 
                     // Create a cursor on the table.
-                    using RowCursor rowCursor = table.Search(null, false);
+                    using RowCursor rowCursor = table.Search(queryFilter, false);
 
                     // Loop through the feature class/table using the cursor.
                     while (rowCursor.MoveNext())
@@ -429,7 +441,9 @@ namespace DataTools
                         // Create a new result detail item for this row.
                         ResultDetail resultDetail = new()
                         {
-                            ResultType = Convert.ToString(row[resultTypeColumn]),
+                            Type = Convert.ToString(row[typeColumn]),
+                            Order = Convert.ToInt16(row[orderColumn]),
+                            Desc = Convert.ToString(row[descColumn]),
                             NewRef = Convert.ToString(row[newRefColumn]),
                             OldRef = Convert.ToString(row[oldRefColumn]),
                             NewArea = Convert.ToString(row[newAreaColumn]) == "0" ? "" : Convert.ToString(row[newAreaColumn]),
@@ -730,7 +744,7 @@ namespace DataTools
                     exists = true;
 
                     // Dispose of the feature class definition.
-                    //featureClassDefinition.Dispose();
+                    featureClassDefinition.Dispose();
                 }
                 catch
                 {
@@ -747,19 +761,19 @@ namespace DataTools
         /// </summary>
         /// <param name="featureClassName"></param>
         /// <returns></returns>
-        public async Task<long> FeatureClassCountRowsAsync(string featureClassName)
+        public async Task<long> FeatureClassCountRowsAsync(string featureClassName, string whereClause)
         {
+            long featureCount = 0;
+
             // Check there is an input feature class name.
             if (String.IsNullOrEmpty(featureClassName))
                 return -1;
-
-            long rows = 0;
 
             // Open a connection to the geodatabase if not already open.
             if (!GeodatabaseOpen) await OpenGeodatabase();
 
             // If still not open.
-            if (!GeodatabaseOpen) return rows;
+            if (!GeodatabaseOpen) return featureCount;
 
             // Check to see if the table is a feature class.
             await QueuedTask.Run(() =>
@@ -772,17 +786,23 @@ namespace DataTools
                     // Open the feature class.
                     using FeatureClass featureClass = _geodatabase.OpenDataset<FeatureClass>(featureClassName);
 
+                    // Create a query filter using the where clause.
+                    QueryFilter queryFilter = new();
+
+                    if (whereClause != null)
+                        queryFilter.WhereClause = whereClause;
+
                     // Count the rows in the feature class.
-                    rows = featureClass.GetCount();
+                    featureCount = featureClass.GetCount(queryFilter);
                 }
                 catch
                 {
                     // GetDefinition or open dataset throw an exception if the definition doesn't exist.
-                    rows = -1;
+                    featureCount = -1;
                 }
             });
 
-            return rows;
+            return featureCount;
         }
 
         #endregion FeatureClasses
@@ -808,6 +828,7 @@ namespace DataTools
             // If still not open.
             if (!GeodatabaseOpen) return exists;
 
+            // Check to see if the table is a table.
             await QueuedTask.Run(() =>
             {
                 try
@@ -818,7 +839,7 @@ namespace DataTools
                     exists = true;
 
                     // Dispose of the table definition.
-                    //tableDefinition.Dispose();
+                    tableDefinition.Dispose();
                 }
                 catch
                 {

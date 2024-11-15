@@ -22,7 +22,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <Grid Name="GridTableSummary" Grid.Row="0" Margin="0,0,0,4">
+            <Grid Name="GridTableSummary" Grid.Row="0" Margin="0,0,0,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -39,10 +39,12 @@
                          Text="{Binding TableSummaryText}"
                          Grid.Row="1"
                          Grid.Column="0"
-                         Height="36"
+                         Height="35"
                          Margin="0,0,0,0"
-                         Padding="0"
-                         IsEnabled="False"
+                         Padding="0,1,0,0"
+                         IsEnabled="True"
+                         IsReadOnly="True"
+                         IsTabStop="False"
                          VerticalAlignment="Top" />
             </Grid>
 
@@ -68,13 +70,13 @@
                         Style="{DynamicResource Esri_SimpleButton}"
                         TabIndex="4"
                         Content="Compare"
-                        ToolTip="Compare the local layer with the remote table" />
+                        ToolTip="Compare local layer and remote table" />
             </Grid>
 
             <Grid Name="GridResultSummary" Grid.Row="2" Margin="0,4,0,4" Visibility="{Binding ResultVisibility}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="102" />
+                    <RowDefinition Height="162" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -96,6 +98,7 @@
                           SelectionChanged="ListViewResultSummary_SelectionChanged"
                           SelectedIndex="{Binding ResultSummaryListSelectedIndex}"
                           SelectionMode="Single">
+
                     <ListView.View>
                         <GridView AllowsColumnReorder="False">
                             <GridView.ColumnHeaderContainerStyle>
@@ -103,17 +106,24 @@
                                     <Setter Property="Visibility" Value="Visible" />
                                 </Style>
                             </GridView.ColumnHeaderContainerStyle>
-                            <GridViewColumn DisplayMemberBinding="{Binding Type}" Header="Type" Width="62">
+                            <GridViewColumn Header="Type" Width="62">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Center" TextAlignment="Center" Text="{Binding}" />
+                                        <TextBlock HorizontalAlignment="Left" Text="{Binding Type}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn DisplayMemberBinding="{Binding Count}" Header="Count" Width="80">
+                            <GridViewColumn Header="Count" Width="50">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Right" TextAlignment="Right" Text="{Binding}" />
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Count}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Description" Width="238">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Left" Text="{Binding Desc}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
@@ -173,38 +183,38 @@
                                     <Setter Property="Visibility" Value="Visible" />
                                 </Style>
                             </GridView.ColumnHeaderContainerStyle>
-                            <GridViewColumn DisplayMemberBinding="{Binding ResultType}" Header="Type" Width="62">
+                            <GridViewColumn Header="Type" Width="62">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Stretch" Text="{Binding}" />
+                                        <TextBlock HorizontalAlignment="Stretch" Text="{Binding Type}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn DisplayMemberBinding="{Binding NewRef}" Header="Ref" Width="80">
+                            <GridViewColumn Header="Ref" Width="80">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Stretch" Text="{Binding}" />
+                                        <TextBlock HorizontalAlignment="Stretch" Text="{Binding NewRef}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn DisplayMemberBinding="{Binding OldRef}" Header="Old Ref" Width="80">
+                            <GridViewColumn Header="Area" Width="63">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Stretch" Text="{Binding}" />
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding NewArea}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn DisplayMemberBinding="{Binding NewArea}" Header="Area" Width="64">
+                            <GridViewColumn Header="Old Ref" Width="80">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Right" Text="{Binding}" />
+                                        <TextBlock HorizontalAlignment="Stretch" Text="{Binding OldRef}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn DisplayMemberBinding="{Binding OldArea}" Header="Old Area" Width="64">
+                            <GridViewColumn Header="Old Area" Width="63">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Right" Text="{Binding}" />
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding OldArea}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
