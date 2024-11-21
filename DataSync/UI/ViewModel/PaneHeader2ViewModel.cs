@@ -412,7 +412,7 @@ namespace DataSync.UI
             // Check if user wants to continue despite warning.
             if (warning)
             {
-                if (MessageBox.Show("Empty, error or orphan features will not be updated.\r\nContinue sync?", _displayName, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No)
+                if (MessageBox.Show("Warning:\r\nEmpty, error or orphan features will not be updated.\r\n\r\nContinue sync?", _displayName, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No)
                     return;
             }
 
