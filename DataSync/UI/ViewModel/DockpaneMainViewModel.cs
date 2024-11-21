@@ -1,4 +1,4 @@
-﻿// The DataTools are a suite of ArcGIS Pro addins used to extract
+﻿// The DataTools are a suite of ArcGIS Pro addins used to extract, sync
 // and manage biodiversity information from ArcGIS Pro and SQL Server
 // based on pre-defined or user specified criteria.
 //
@@ -32,7 +32,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Documents;
 
 //using System.Windows.Forms;
 using System.Windows.Input;
@@ -68,13 +67,13 @@ namespace DataSync.UI
         /// </summary>
         protected DockpaneMainViewModel()
         {
-            InitializeComponent();
+            InitializeComponentAsync();
         }
 
         /// <summary>
         /// Initialise the DockPane components.
         /// </summary>
-        public async void InitializeComponent()
+        public async void InitializeComponentAsync()
         {
             _dockPane = this;
             _initialised = false;
@@ -84,7 +83,7 @@ namespace DataSync.UI
             PrimaryMenuList.Clear();
 
             PrimaryMenuList.Add(new TabControl() { Text = "Profile", Tooltip = "Select XML profile" });
-            PrimaryMenuList.Add(new TabControl() { Text = "Extract", Tooltip = "Run data extract" });
+            PrimaryMenuList.Add(new TabControl() { Text = "Sync", Tooltip = "Run data sync" });
 
             // Load the default XML profile (or let the user choose a profile.
             _paneH1VM = new PaneHeader1ViewModel(_dockPane);
@@ -99,7 +98,7 @@ namespace DataSync.UI
             // If the default (and only) profile was loaded.
             if (_paneH1VM.XMLLoaded)
             {
-                // Initialise the extract pane.
+                // Initialise the sync pane.
                 if (!await InitialiseSyncPaneAsync(false))
                     return;
 
@@ -108,7 +107,7 @@ namespace DataSync.UI
             }
             else
             {
-                // Select the extract tab.
+                // Select the sync tab.
                 SelectedPanelHeaderIndex = 0;
             }
 
@@ -131,7 +130,7 @@ namespace DataSync.UI
 
             // If the ViewModel is uninitialised then initialise it.
             if (!vm.Initialised)
-                vm.InitializeComponent();
+                vm.InitializeComponentAsync();
 
             // If the ViewModel is in error then don't show the dockpane.
             if (vm.InError)
@@ -326,7 +325,7 @@ namespace DataSync.UI
         private bool _syncRunning;
 
         /// <summary>
-        /// Is the extract running?
+        /// Is the sync running?
         /// </summary>
         public bool SyncRunning
         {
@@ -452,7 +451,6 @@ namespace DataSync.UI
             }
 
             // Load the form (don't wait for the response).
-            //Task.Run(() => _paneH2VM.ResetFormAsync(false));
             _paneH2VM.ResetFormAsync(false);
 
             return true;
@@ -676,7 +674,7 @@ namespace DataSync.UI
         /// </summary>
         /// <param name="param"></param>
         /// <remarks></remarks>
-        private async void RunCommandClick(object param)
+        private void RunCommandClick(object param)
         {
             // Run the sync (but don't wait).
             _paneH2VM.RunSyncAsync();

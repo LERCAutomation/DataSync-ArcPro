@@ -7,11 +7,11 @@
 
 	<AddInInfo id="{3b4733d2-72bc-4515-818d-c7681bc43db9}" version="1.0.0" desktopVersion="3.3.52636">
 		<Name>DataSync</Name>
-		<Description>DataSync is an ArcGIS .Net tool and associated SQL scripts to compare and upload map layers between ArcGIS and SQL Server.</Description>
+		<Description>DataSync is an ArcGIS .Net tool and associated SQL scripts to compare and sync map layers between ArcGIS and SQL Server.</Description>
 		<Image>Images\AddinDesktop32.png</Image>
 		<Author>Andy Foy, andy@andyfoyconsulting.co.uk</Author>
 		<Company>Andy Foy Consulting</Company>
-		<Date>14/11/2024 18:31:00 AM</Date>
+		<Date>21/11/2024 08:43:00 AM</Date>
 		<Subject>Framework, Geodatabase</Subject>
 		<!-- Note subject can be one or more of these topics:
                     Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->

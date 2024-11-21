@@ -1,4 +1,4 @@
-﻿// The DataTools are a suite of ArcGIS Pro addins used to extract
+﻿// The DataTools are a suite of ArcGIS Pro addins used to extract, sync
 // and manage biodiversity information from ArcGIS Pro and SQL Server
 // based on pre-defined or user specified criteria.
 //
@@ -33,11 +33,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using MessageBox = ArcGIS.Desktop.Framework.Dialogs.MessageBox;
@@ -66,15 +64,19 @@ namespace DataSync.UI
 
         // Table fields.
         private string _localLayer;
+        private string _localClause;
         private string _remoteTable;
+        private string _remoteClause;
         private string _remoteLayer;
         private string _keyColumn;
         private string _spatialColumn;
 
-        private long _localRows;
+        private long _localFeatures;
         private long _localBlankKeys;
-        private long _remoteRows;
+        private long _localDuplicates;
+        private long _remoteFeatures;
         private long _remoteBlankKeys;
+        private long _remoteDuplicates;
 
         private List<ResultSummary> _resultSummary;
         private List<ResultDetail> _resultDetail;
@@ -119,7 +121,7 @@ namespace DataSync.UI
         }
 
         /// <summary>
-        /// Initialise the extract pane.
+        /// Initialise the sync pane.
         /// </summary>
         private void InitializeComponent()
         {
@@ -139,7 +141,9 @@ namespace DataSync.UI
             _updateStoredProcedure = _toolConfig.UpdateStoredProcedure;
             _clearStoredProcedure = _toolConfig.ClearStoredProcedure;
             _localLayer = _toolConfig.LocalLayer;
+            _localClause = _toolConfig.LocalClause;
             _remoteTable = _toolConfig.RemoteTable;
+            _remoteClause = _toolConfig.RemoteClause;
             _remoteLayer = _toolConfig.RemoteLayer;
             _keyColumn = _toolConfig.KeyColumn;
             _spatialColumn = _toolConfig.SpatialColumn;
@@ -168,6 +172,30 @@ namespace DataSync.UI
         /// Is the list of result summary enabled?
         /// </summary>
         public bool ResultSummaryListEnabled
+        {
+            get
+            {
+                return ((_dockPane.ProcessStatus == null)
+                    && (_resultSummaryList != null));
+            }
+        }
+
+        /// <summary>
+        /// Is the hidden zoom to result button enabled.
+        /// </summary>
+        public bool LoadResultsEnabled
+        {
+            get
+            {
+                return ((_dockPane.ProcessStatus == null)
+                    && (_resultSummaryList != null));
+            }
+        }
+
+        /// <summary>
+        /// Is the hidden zoom to result button enabled.
+        /// </summary>
+        public bool ZoomToDetailEnabled
         {
             get
             {
@@ -355,7 +383,7 @@ namespace DataSync.UI
         private void CheckCommandClick(object param)
         {
             // Run the check (don't wait).
-            CheckChangesAsync();
+            CheckChangesAsync(true);
         }
 
         #endregion Check Command
@@ -367,12 +395,35 @@ namespace DataSync.UI
         /// </summary>
         public async void RunSyncAsync()
         {
+            // Check results before sync.
+            bool warning = false;
+            foreach (ResultSummary resultSummary in _resultSummaryList)
+            {
+                string type = resultSummary.Type.ToLower();
+                warning = type switch
+                {
+                    "empty" => true,
+                    "error" => true,
+                    "orphan" => true,
+                    _ => warning
+                };
+            }
+
+            // Check if user wants to continue despite warning.
+            if (warning)
+            {
+                if (MessageBox.Show("Empty, error or orphan features will not be updated.\r\nContinue sync?", _displayName, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No)
+                    return;
+            }
+
             // Clear any messages.
             ClearMessage();
 
             // Update the fields and buttons in the form.
             UpdateFormControls();
             _dockPane.RefreshPanel1Buttons();
+
+            _dockPane.ProgressUpdate("Applying updates to remote table", -1, -1);
 
             // Process the sync.
             bool success;
@@ -398,6 +449,9 @@ namespace DataSync.UI
                 image = "Error";
             }
 
+            // Hide progress update (to allow the details to reload).
+            _dockPane.ProgressUpdate(null, -1, -1);
+
             // Finish up now the sync has stopped (successfully or not).
             StopSync(message, image);
 
@@ -410,18 +464,17 @@ namespace DataSync.UI
 
         #region Properties
 
-        private string _tableSummaryText;
+        private ObservableCollection<TableSummary> _tableSummaryList;
 
-        public string TableSummaryText
+        public ObservableCollection<TableSummary> TableSummaryList
         {
             get
             {
-                return _tableSummaryText;
+                return _tableSummaryList;
             }
             set
             {
-                _tableSummaryText = value;
-                OnPropertyChanged(nameof(TableSummaryText));
+                _tableSummaryList = value;
             }
         }
 
@@ -478,6 +531,9 @@ namespace DataSync.UI
                 }
 
                 OnPropertyChanged(nameof(ResultDetailListHeight));
+
+                // Clear any messages.
+                ClearMessage();
             }
         }
 
@@ -503,46 +559,13 @@ namespace DataSync.UI
             }
         }
 
+        int _resultDetailListSelectedIndex;
+
         public int ResultDetailListSelectedIndex
         {
             set
             {
-                // Skip if no item is selected.
-                if (value == -1)
-                    return;
-
-                // Clear any messages.
-                ClearMessage();
-
-                // Get the selected item.
-                ResultDetail resultDetail = _resultDetailList[value];
-
-                // Get the type of the selected result.
-                string resultType = resultDetail.Type;
-
-                // Clear the local layer features selection (don't wait).
-                _mapFunctions.ClearLayerSelectionAsync(_localLayer);
-
-                // Clear the local layer features selection (don't wait).
-                _mapFunctions.ClearLayerSelectionAsync(_remoteLayer);
-
-                // If the result type is a deleted feature.
-                if (resultType == "Deleted")
-                {
-                    // Get the key of the selected result.
-                    string oldRef = resultDetail.OldRef?.Trim();
-
-                    // Zoom to the selected result.
-                    ZoomToResultAsync(_remoteLayer, oldRef);
-                }
-                else
-                {
-                    // Get the key of the selected result.
-                    string newRef = resultDetail.NewRef?.Trim();
-
-                    // Zoom to the selected result.
-                    ZoomToResultAsync(_localLayer, newRef);
-                }
+                _resultDetailListSelectedIndex = value;
             }
         }
 
@@ -556,7 +579,7 @@ namespace DataSync.UI
             get
             {
                 if ((_resultDetailList == null) || (_resultDetailList.Count < 19))
-                    return 360;
+                    return 340;
                 else
                     return _resultDetailListHeight;
             }
@@ -579,7 +602,7 @@ namespace DataSync.UI
         private bool _clearLogFile;
 
         /// <summary>
-        /// Is the log file to be cleared before running the extract?
+        /// Is the log file to be cleared before running the sync?
         /// </summary>
         public bool ClearLogFile
         {
@@ -596,7 +619,7 @@ namespace DataSync.UI
         private bool _openLogFile;
 
         /// <summary>
-        /// Is the log file to be opened after running the extract?
+        /// Is the log file to be opened after running the sync?
         /// </summary>
         public bool OpenLogFile
         {
@@ -644,6 +667,7 @@ namespace DataSync.UI
         /// <summary>
         /// Set all of the form fields to their default values.
         /// </summary>
+        /// <param name="reset"></param>
         /// <returns></returns>
         public async Task ResetFormAsync(bool reset)
         {
@@ -681,9 +705,9 @@ namespace DataSync.UI
         /// <returns></returns>
         public async Task LoadTableDetailsAsync(bool reset, bool message)
         {
-            // If already processing then exit.
-            if (_dockPane.ProcessStatus != null)
-                return;
+            //// If already processing then exit.
+            //if (_dockPane.ProcessStatus != null)
+            //    return;
 
             // Reset the check has run flag.
             _checkHasRun = false;
@@ -691,8 +715,8 @@ namespace DataSync.UI
             // Reset the tables loaded flag.
             _tablesLoaded = false;
 
-            // Clear the local and remote row counts.
-            TableSummaryText = "";
+            // Clear the local and remote feature counts.
+            TableSummaryList = [];
 
             // Clear the list of result summary and details.
             ClearFormLists();
@@ -709,10 +733,10 @@ namespace DataSync.UI
             // Update the fields and buttons in the form.
             UpdateFormControls();
 
-            // Load the local table details (don't wait)
+            // Load the local table details (don't wait).
             Task<string> localDetailsTask = LoadLocalDetailsAsync();
 
-            // Load the local table details (don't wait)
+            // Load the remote table details (don't wait).
             Task<string> remoteDetailsTask = LoadRemoteDetailsAsync();
 
             // Wait for all of the lists to load.
@@ -741,15 +765,6 @@ namespace DataSync.UI
             }
 
             // Show any message from loading the remote table details.
-            if (localDetailsTask.Result != null!)
-            {
-                ShowMessage(localDetailsTask.Result, MessageType.Warning);
-                if (message)
-                    MessageBox.Show(localDetailsTask.Result, _displayName, MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            // Show any message from loading the remote table details.
             if (remoteDetailsTask.Result != null!)
             {
                 ShowMessage(remoteDetailsTask.Result, MessageType.Warning);
@@ -758,34 +773,45 @@ namespace DataSync.UI
                 return;
             }
 
-            // Set the local row counts.
-            string localFeatures;
-            if (_localRows < 0)
-                localFeatures = "Error counting local features";    //string.Format("{0:n0}", 
-            else
-                localFeatures = string.Format("{0:n0} local features", _localRows);
+            // Set the local layer tool tip.
+            string localToolTip = string.Format("{0} feature{1} with null or blank keys, {2} feature{3} with duplicate keys", _localBlankKeys, _localBlankKeys == 1 ? "" : "s", _localDuplicates, _localDuplicates == 1 ? "" : "s");
 
-            if (_localBlankKeys > 0)
-                localFeatures += string.Format(" ({0:n0} with null or blank key)", _localBlankKeys);
+            // Add the local details to the table summary.
+            TableSummary tableSummary = new()
+            {
+                Table = "Local",
+                Count = _localFeatures,
+                Errors = _localBlankKeys,
+                Duplicates = _localDuplicates,
+                ToolTip = localToolTip
+            };
+            _tableSummaryList.Add(tableSummary);
 
-            // Set the remote row counts.
-            string remoteFeatures;
-            if (_remoteRows < 0)
-                remoteFeatures = "Error counting remote features";
-            else
-                remoteFeatures = string.Format("{0:n0} remote features", _remoteRows);
+            // Set the remote table tool tip.
+            string remoteToolTip = string.Format("{0} feature{1} with null or blank keys, {2} feature{3} with duplicate keys", _remoteBlankKeys, _remoteBlankKeys == 1 ? "" : "s", _remoteDuplicates, _remoteDuplicates == 1 ? "" : "s");
 
-            if (_remoteBlankKeys > 0)
-                remoteFeatures += string.Format(" ({0:n0} with null or blank key)", _remoteBlankKeys);
+            // Add the remote details to the table summary.
+            tableSummary = new()
+            {
+                Table = "Remote",
+                Count = _remoteFeatures,
+                Errors = _remoteBlankKeys,
+                Duplicates = _remoteDuplicates,
+                ToolTip = remoteToolTip
+            };
+            _tableSummaryList.Add(tableSummary);
 
-            // Display the local and remote row counts.
-            TableSummaryText = string.Format("{0}\r\n{1}", localFeatures, remoteFeatures);
+            // Update the table summary list.
+            OnPropertyChanged(nameof(TableSummaryList));
 
-            // Report any null or blank keys.
-            if (_localBlankKeys > 0)
-                ShowMessage(string.Format("{0:n0} local feature{1} with null or blank key{1}", _localBlankKeys, _localBlankKeys > 1 ? "s" : ""), MessageType.Warning);
-            else if (_remoteBlankKeys > 0)
-                ShowMessage(string.Format("{0:n0} remote feature{1} with null or blank key{1}", _remoteBlankKeys, _remoteBlankKeys > 1 ? "s" : ""), MessageType.Warning);
+            // Check the local and remote feature counts and
+            // report any null, blank or duplicate keys.
+            if (_localFeatures < 0)
+                ShowMessage("Error counting local features", MessageType.Warning);
+            else if (_remoteFeatures < 0)
+                ShowMessage("Error counting remote features", MessageType.Warning);
+            else if ((_localBlankKeys > 0) || (_localDuplicates > 0) || (_remoteBlankKeys > 0) || (_remoteDuplicates > 0))
+                ShowMessage(string.Format("One or more features with null, blank or duplicate keys"), MessageType.Warning);
         }
 
         /// <summary>
@@ -824,12 +850,17 @@ namespace DataSync.UI
             if (!await _mapFunctions.FieldExistsAsync(localLayerPath, _keyColumn))
                 return string.Format("Spatial column '{0}' not found in local layer '{1}'", _keyColumn, _localLayer);
 
-            // Count the number of rows in the layer.
-            _localRows = await ArcGISFunctions.CountFeaturesAsync(LocalFeatureLayer, null);
+            // Count the number of features in the layer.
+            string whereClause = _localClause;
+            _localFeatures = await ArcGISFunctions.GetFeaturesCountAsync(LocalFeatureLayer, whereClause);
 
-            // Count the number of rows with null/blank keys.
-            string whereClause = "(" + _keyColumn + " IS NULL OR " + _keyColumn + " = '')";
-            _localBlankKeys = await ArcGISFunctions.CountFeaturesAsync(LocalFeatureLayer, whereClause);
+            // Count the number of features with null/blank keys.
+            whereClause = "(" + _keyColumn + " IS NULL OR " + _keyColumn + " = '')";
+            _localBlankKeys = await ArcGISFunctions.GetFeaturesCountAsync(LocalFeatureLayer, whereClause);
+
+            // Count the number of features with duplicate keys.
+            whereClause = "(" + _keyColumn + " IS NOT NULL AND " + _keyColumn + " <> '')";
+            _localDuplicates = await ArcGISFunctions.GetDuplicateFeaturesCountAsync(LocalFeatureLayer, _keyColumn, whereClause);
 
             return null;
         }
@@ -846,7 +877,7 @@ namespace DataSync.UI
                 return null;
 
             // Check if the feature class exists.
-            if (!await _sqlFunctions.FeatureClassExistsAsync(_remoteTable))
+            if (!await _sqlFunctions.FCExistsAsync(_remoteTable))
                 return "Remote table '" + _remoteTable + "' not found.";
 
             // Check the spatial column is in the table.
@@ -857,12 +888,17 @@ namespace DataSync.UI
             if (!await _sqlFunctions.FieldExistsAsync(_remoteTable, _keyColumn))
                 return string.Format("Spatial column '{0}' not found in remote table '{1}'", _keyColumn, _remoteTable);
 
-            // Count the number of rows in the remote table.
-            _remoteRows = await _sqlFunctions.FeatureClassCountRowsAsync(_remoteTable, null);
+            // Count the number of features in the remote table.
+            string whereClause = _remoteClause;
+            _remoteFeatures = await _sqlFunctions.GetFeaturesCountAsync(_remoteTable, whereClause);
 
-            // Count the number of rows in the layer.
-            string whereClause = "(" + _keyColumn + " IS NULL OR " + _keyColumn + " = '')";
-            _remoteBlankKeys = await _sqlFunctions.FeatureClassCountRowsAsync(_remoteTable, whereClause);
+            // Count the number of features with null/blank keys.
+            whereClause = "((" + _remoteClause + ") AND (" + _keyColumn + " IS NULL OR " + _keyColumn + " = ''))";
+            _remoteBlankKeys = await _sqlFunctions.GetFeaturesCountAsync(_remoteTable, whereClause);
+
+            // Count the number of features with duplicate keys.
+            whereClause = "((" + _remoteClause + ") AND (" + _keyColumn + " IS NOT NULL AND " + _keyColumn + " <> ''))";
+            _remoteDuplicates = await _sqlFunctions.GetDuplicateFeaturesCountAsync(_remoteTable, _keyColumn, whereClause);
 
             return null;
         }
@@ -891,12 +927,142 @@ namespace DataSync.UI
         /// Check the changes between the local layer and remote
         /// table before updating.
         /// </summary>
+        /// <param name="uploadLayer"></param>
         /// <returns>bool</returns>
-        private async Task<bool> CheckChangesAsync()
+        private async Task<bool> CheckChangesAsync(bool uploadLayer)
         {
             // Clear any messages.
             ClearMessage();
 
+            // Reset the check has run flag.
+            _checkHasRun = false;
+
+            // Expand the detail list (ready to be resized later).
+            _resultDetailListHeight = null;
+
+            // Update the fields and buttons in the form.
+            UpdateFormControls();
+            _dockPane.RefreshPanel1Buttons();
+
+            // Reset the result summary and detail lists.
+            ResultSummaryList = [];
+            ResultDetailList = [];
+
+            // Clear the local layer features selection.
+            await _mapFunctions.ClearLayerSelectionAsync(_localLayer);
+
+            // Set the full remote table path.
+            string remoteTablePath = _sdeFileName + @"\" + _defaultSchema + "." + _remoteTable;
+
+            if (uploadLayer)
+            {
+                _dockPane.ProgressUpdate("Uploading local layer to server", -1, -1);
+
+                //FileFunctions.WriteLine(_logFile, "Uploading local layer to server ...");
+
+                // Get the full local layer path (in case it's nested in one or more groups).
+                string localLayerPath = _mapFunctions.GetLayerPath(_localLayer);
+
+                if (!await ArcGISFunctions.CopyFeaturesAsync(localLayerPath, remoteTablePath + "_TEMP", false))
+                {
+                    ShowMessage("Error: Uploading local layer '" + _localLayer + "'", MessageType.Warning);
+                    //FileFunctions.WriteLine(_logFile, "Error: Uploading local layer.");
+                    //_syncErrors = true;
+                    return false;
+                }
+
+                //FileFunctions.WriteLine(_logFile, "Upload to server complete.");
+            }
+
+            // Check if the remote map layer is loaded.
+            if (_mapFunctions.FindLayer(_remoteLayer) == null)
+            {
+                //FileFunctions.WriteLine(_logFile, "Adding remote layer to map.");
+
+                // Get the position of the local layer in the map.
+                int localIndex = _mapFunctions.FindLayerIndex(_localLayer) + 1;
+
+                // Add the remote table to the map below the local table.
+                if (!await _mapFunctions.AddLayerToMapAsync(remoteTablePath, localIndex, _remoteLayer))
+                {
+                    ShowMessage("Error: Adding remote layer to map", MessageType.Warning);
+                    //FileFunctions.WriteLine(_logFile, "Error: Adding remote layer to map.");
+                    //_syncErrors = true;
+                    return false;
+                }
+            }
+
+            _dockPane.ProgressUpdate("Comparing local layer and remote table", -1, -1);
+
+            //FileFunctions.WriteLine(_logFile, "Comparing local layer and remote table ...");
+
+            string resultsTable = _remoteTable + "_SYNC";
+
+            // Delete the results table before we start.
+            if (await _sqlFunctions.TableExistsAsync(resultsTable))
+                await _sqlFunctions.DeleteTableAsync(resultsTable);
+
+            // Execute the stored procedure to check the local layer and remote table.
+            long resultsCount = await PerformSQLCheckAsync(_defaultSchema, _remoteTable, _keyColumn, _spatialColumn, resultsTable);
+
+            // Check the results table has been created.
+            if (resultsCount < 0)
+            {
+                ShowMessage("Error: Comparing local layer and remote table", MessageType.Warning);
+                //FileFunctions.WriteLine(_logFile, "Error: Comparing local layer and remote table.");
+                //_syncErrors = true;
+                return false;
+            }
+
+            //FileFunctions.WriteLine(_logFile, "Comparing of local layer and remote table complete.");
+
+            _dockPane.ProgressUpdate("Loading results of comparison", -1, -1);
+
+            // Get all of the sync results.
+            string typeColumn = "Type";
+            string orderColumn = "Order";
+            string descColumn = "Desc";
+            string newRefColumn = "Ref";
+            string oldRefColumn = "RefOld";
+            string newAreaColumn = "Area";
+            string oldAreaColumn = "AreaOld";
+            _resultDetail = await _sqlFunctions.GetSyncResultsAsync(resultsTable, typeColumn, orderColumn, descColumn, newRefColumn, oldRefColumn, newAreaColumn, oldAreaColumn);
+
+            // Get a summary of the results.
+            _resultSummary = (from r in _resultDetail
+                              group r by new { r.Type, r.Desc }
+                              into grp
+                              select new ResultSummary()
+                              {
+                                  Type = grp.Key.Type,
+                                  Count = grp.Count(),
+                                  Desc = grp.Key.Desc
+                              }).ToList();
+
+            // Set the list of result summary.
+            ResultSummaryList = new ObservableCollection<ResultSummary>(_resultSummary);
+
+            // Set the check has run flag.
+            _checkHasRun = true;
+
+            _dockPane.ProgressUpdate(null, -1, -1);
+
+            // Update the fields and buttons in the form.
+            UpdateFormControls();
+            _dockPane.RefreshPanel1Buttons();
+
+            // Force result detail list height to reset.
+            ResultDetailListExpandCommandClick(null);
+
+            return true;
+        }
+
+        /// <summary>
+        /// Apply the changes to the remote table.
+        /// </summary>
+        /// <returns>bool</returns>
+        private async Task<bool> ApplyChangesAsync()
+        {
             // Replace any illegal characters in the user name string.
             _userID = StringFunctions.StripIllegals(Environment.UserName, "_", false);
 
@@ -941,133 +1107,37 @@ namespace DataSync.UI
                 }
             }
 
-            // If userid is temp.
-            if (_userID == "Temp")
-                FileFunctions.WriteLine(_logFile, "User ID not found. User ID used will be 'Temp'.");
+            FileFunctions.WriteLine(_logFile, "-----------------------------------------------------------------------");
+            FileFunctions.WriteLine(_logFile, "Process started");
+            FileFunctions.WriteLine(_logFile, "-----------------------------------------------------------------------");
+            FileFunctions.WriteLine(_logFile, "");
+            FileFunctions.WriteLine(_logFile, string.Format("{0:n0} features in local table.", _localFeatures));
+            FileFunctions.WriteLine(_logFile, string.Format("{0:n0} features in remote table.", _remoteFeatures));
+            FileFunctions.WriteLine(_logFile, "");
 
-            // Reset the check has run flag.
-            _checkHasRun = false;
-
-            //TODO - Needed?
-            // Expand the detail list (ready to be resized later).
-            _resultDetailListHeight = null;
-
-            // Update the fields and buttons in the form.
-            UpdateFormControls();
-            _dockPane.RefreshPanel1Buttons();
-
-            // Reset the result summary and detail lists.
-            ResultSummaryList = [];
-            ResultDetailList = [];
-
-            // Clear the local layer features selection.
-            await _mapFunctions.ClearLayerSelectionAsync(_localLayer);
-
-            _dockPane.ProgressUpdate("Uploading local layer to server", -1, -1);
-
-            FileFunctions.WriteLine(_logFile, "Uploading local layer to server ...");
-
-            // Get the full local layer path (in case it's nested in one or more groups).
-            string localLayerPath = _mapFunctions.GetLayerPath(_localLayer);
-
-            // Set the full remote table path.
-            string remoteTablePath = _sdeFileName + @"\" + _defaultSchema + "." + _remoteTable;
-
-            if (!await ArcGISFunctions.CopyFeaturesAsync(localLayerPath, remoteTablePath + "_TEMP", false))
+            // Check results before sync.
+            bool warning = false;
+            foreach (ResultSummary resultSummary in _resultSummaryList)
             {
-                FileFunctions.WriteLine(_logFile, "Error: Uploading local layer.");
-                //_extractErrors = true;
-                return false;
-            }
+                FileFunctions.WriteLine(_logFile, string.Format("{0:n0} {1} feature{2} where {3}.", resultSummary.Count, resultSummary.Type.ToLower(), resultSummary.Count == 1 ? "" : "s", resultSummary.Desc));
 
-            FileFunctions.WriteLine(_logFile, "Upload to server complete.");
-
-            // Check if the remote map layer is loaded.
-            if (_mapFunctions.FindLayer(_remoteLayer) == null)
-            {
-                FileFunctions.WriteLine(_logFile, "Adding remote layer to map.");
-
-                // Get the position of the local layer in the map.
-                int localIndex = _mapFunctions.FindLayerIndex(_localLayer) + 1;
-
-                // Add the remote table to the map below the local table.
-                if (!await _mapFunctions.AddLayerToMapAsync(remoteTablePath, localIndex, _remoteLayer))
+                string type = resultSummary.Type.ToLower();
+                warning = type switch
                 {
-                    FileFunctions.WriteLine(_logFile, "Error: Adding remote layer to map.");
-                    //_extractErrors = true;
-                    return false;
-                }
+                    "empty" => true,
+                    "error" => true,
+                    "orphan" => true,
+                    _ => warning
+                };
             }
+            FileFunctions.WriteLine(_logFile, "");
 
-            _dockPane.ProgressUpdate("Comparing local layer and remote table", -1, -1);
-
-            FileFunctions.WriteLine(_logFile, "Comparing local layer and remote table ...");
-
-            string resultsTable = _remoteTable + "_SYNC";
-
-            // Delete the results table before we start.
-            if (await _sqlFunctions.TableExistsAsync(resultsTable))
-                await _sqlFunctions.DeleteTableAsync(resultsTable);
-
-            // Execute the stored procedure to check the local layer and remote table.
-            long resultsCount = await PerformSQLCheckAsync(_defaultSchema, _remoteTable, _keyColumn, _spatialColumn, resultsTable);
-
-            // Check the results table has been created.
-            if (resultsCount < 0)
+            // Include a warning in the log file.
+            if (warning)
             {
-                FileFunctions.WriteLine(_logFile, "Error: Comparing local layer and remote table.");
-                //_extractErrors = true;
-                return false;
+                FileFunctions.WriteLine(_logFile, "Warning: Empty, error or orphan features will not be updated.");
+                FileFunctions.WriteLine(_logFile, "");
             }
-
-            FileFunctions.WriteLine(_logFile, "Comparing of local layer and remote table complete.");
-
-            _dockPane.ProgressUpdate(null, -1, -1);
-
-            // Get all of the sync results.
-            string typeColumn = "Type";
-            string orderColumn = "Order";
-            string descColumn = "Desc";
-            string newRefColumn = "Ref";
-            string oldRefColumn = "RefOld";
-            string newAreaColumn = "Area";
-            string oldAreaColumn = "AreaOld";
-            _resultDetail = await _sqlFunctions.GetSyncResultsAsync(resultsTable, typeColumn, orderColumn, descColumn, newRefColumn, oldRefColumn, newAreaColumn, oldAreaColumn);
-
-            // Get a summary of the results.
-            _resultSummary = (from r in _resultDetail
-                              group r by new { r.Type, r.Desc }
-                              into grp
-                              select new ResultSummary()
-                              {
-                                  Type = grp.Key.Type,
-                                  Count = grp.Count(),
-                                  Desc = grp.Key.Desc
-                              }).ToList();
-
-            // Set the list of result summary.
-            ResultSummaryList = new ObservableCollection<ResultSummary>(_resultSummary);
-
-            // Set the check has run flag.
-            _checkHasRun = true;
-
-            // Update the fields and buttons in the form.
-            UpdateFormControls();
-            _dockPane.RefreshPanel1Buttons();
-
-            // Force result detail list height to reset.
-            ResultDetailListExpandCommandClick(null);
-
-            return true;
-        }
-
-        /// <summary>
-        /// Apply the changes to the remote table.
-        /// </summary>
-        /// <returns>bool</returns>
-        private async Task<bool> ApplyChangesAsync()
-        {
-            _dockPane.ProgressUpdate("Applying updates to remote table", -1, -1);
 
             // Execute the stored procedure to update the remote table.
             if (!await PerformSQLUpdateAsync(_defaultSchema, _remoteTable))
@@ -1078,26 +1148,22 @@ namespace DataSync.UI
             }
 
             // Check the updated remote feature class exists.
-            if (!await _sqlFunctions.FeatureClassExistsAsync(_remoteTable))
+            if (!await _sqlFunctions.FCExistsAsync(_remoteTable))
             {
                 FileFunctions.WriteLine(_logFile, "Error: Updated remote table is not found.");
                 _syncErrors = true;
                 return false;
             }
 
-            // Count the number of rows in the remote table.
-            _remoteRows = await _sqlFunctions.FeatureClassCountRowsAsync(_remoteTable, null);
-
-            if (_remoteRows <= 0)
-            {
-                FileFunctions.WriteLine(_logFile, "Error: Updated remote table is empty.");
-                _syncErrors = true;
-                return false;
-            }
-
-            FileFunctions.WriteLine(_logFile, _remoteRows.ToString() + " rows in updated remote table.");
             FileFunctions.WriteLine(_logFile, "Updates to remote table complete.");
-            FileFunctions.WriteLine(_logFile, "----------------------------------------------------------------------");
+
+            // Reload the details of the local and remote tables.
+            await LoadTableDetailsAsync(true, true);
+
+            //// Re-run the check to show if anything is still outstanding.
+            //await CheckChangesAsync(false);
+
+            FileFunctions.WriteLine(_logFile, string.Format("{0:n0} features now in remote table.", _remoteFeatures));
 
             // Increment the progress value to the last step.
             _dockPane.ProgressUpdate("Cleaning up...", -1, -1);
@@ -1123,7 +1189,7 @@ namespace DataSync.UI
             // Resume the map redrawing.
             _mapFunctions.PauseDrawing(false);
 
-            // Indicate extract has finished.
+            // Indicate sync has finished.
             _dockPane.SyncRunning = false;
             _dockPane.ProgressUpdate(null, -1, -1);
 
@@ -1173,11 +1239,12 @@ namespace DataSync.UI
         /// <param name="remoteTable"></param>
         /// <param name="keyColumn"></param>
         /// <param name="spatialColumn"></param>
-        /// <returns></returns>
+        /// <param name="resultsTable"></param>
+        /// <returns>long</returns>
         internal async Task<long> PerformSQLCheckAsync(string schema, string remoteTable, string keyColumn, string spatialColumn, string resultsTable)
         {
             bool success;
-            long tableCount = 0;
+            long tableCount = -1;
 
             // Get the name of the stored procedure to execute selection in SQL Server.
             string storedProcedureName = _checkStoredProcedure;
@@ -1197,20 +1264,19 @@ namespace DataSync.UI
 
             try
             {
-                FileFunctions.WriteLine(_logFile, "Executing SQL comparison for '" + remoteTable + "' ...");
+                //FileFunctions.WriteLine(_logFile, "Executing SQL comparison for '" + remoteTable + "' ...");
 
                 // Execute the stored procedure.
-                await _sqlFunctions.ExecuteSQLOnGeodatabase(sqlCmd.ToString());
+                await _sqlFunctions.ExecuteSQLOnGeodatabaseAsync(sqlCmd.ToString());
 
                 // Check if the output feature class exists.
                 if (!await _sqlFunctions.TableExistsAsync(sqlOutputTable))
                     success = false;
 
-                // Count the number of rows in the output feature count.
-                tableCount = await _sqlFunctions.TableCountRowsAsync(sqlOutputTable);
+                // Count the number of features in the output feature count.
+                tableCount = await _sqlFunctions.GetTableRowCountAsync(sqlOutputTable);
 
                 success = true;
-
             }
             catch (Exception ex)
             {
@@ -1253,8 +1319,7 @@ namespace DataSync.UI
                 FileFunctions.WriteLine(_logFile, "Applying updates to remote table ...");
 
                 // Execute the stored procedure.
-                await _sqlFunctions.ExecuteSQLOnGeodatabase(sqlCmd.ToString());
-
+                await _sqlFunctions.ExecuteSQLOnGeodatabaseAsync(sqlCmd.ToString());
             }
             catch (Exception ex)
             {
@@ -1290,7 +1355,7 @@ namespace DataSync.UI
                 //FileFunctions.WriteLine(_logFile, "Deleting SQL temporary table");
 
                 // Execute the stored procedure.
-                await _sqlFunctions.ExecuteSQLOnGeodatabase(sqlCmd.ToString());
+                await _sqlFunctions.ExecuteSQLOnGeodatabaseAsync(sqlCmd.ToString());
             }
             catch (Exception ex)
             {
@@ -1301,19 +1366,14 @@ namespace DataSync.UI
             return true;
         }
 
-        internal async Task<bool> ClearMapTablesAsync(string layerName)
-        {
-            // Remove the remote layer from the map.
-            if (!await _mapFunctions.RemoveLayerAsync(layerName))
-            {
-                FileFunctions.WriteLine(_logFile, "Error: Removing layer '" + layerName + "' from map.");
-                return false;
-            }
-
-            return true;
-        }
-
-        internal async Task ZoomToResultAsync(string layerName, string keyValue)
+        /// <summary>
+        /// Zoom to the feature matching the key field
+        /// in a layer.
+        /// </summary>
+        /// <param name="layerName"></param>
+        /// <param name="keyValue"></param>
+        /// <returns></returns>
+        internal async Task ZoomToFeatureAsync(string layerName, string keyValue)
         {
             // Get the feature layer.
             FeatureLayer featurelayer = _mapFunctions.FindLayer(layerName);
@@ -1325,10 +1385,8 @@ namespace DataSync.UI
 
             // Create the search query.
             string searchClause;
-            if (keyValue == null)
-                searchClause = _keyColumn + " IS NULL";
-            if (keyValue == "")
-                searchClause = _keyColumn + " = ''";
+            if (string.IsNullOrEmpty(keyValue))
+                searchClause = _keyColumn + " IS NULL OR " + _keyColumn + " = ''";
             else
                 searchClause = _keyColumn + " = '" + keyValue + "'";
 
@@ -1373,6 +1431,9 @@ namespace DataSync.UI
                 // Zoom to the selected feature.
                 long selectedOID = selectedOIDs[0];
                 await _mapFunctions.ZoomToLayerAsync(layerName, selectedOID, 2, null);
+
+                // Clear any messages.
+                ClearMessage();
             }
             // Multiple objects were found.
             else
@@ -1380,6 +1441,7 @@ namespace DataSync.UI
                 // Zoom to all of the selected features.
                 await _mapFunctions.ZoomToLayerAsync(layerName, selectedOIDs);
 
+                // Warn the user there are multiple features.
                 ShowMessage("Multiple features found for selected feature", MessageType.Warning);
             }
         }
@@ -1417,7 +1479,7 @@ namespace DataSync.UI
         private void ResultDetailListExpandCommandClick(object param)
         {
             if (_resultDetailListHeight == null)
-                _resultDetailListHeight = 360;
+                _resultDetailListHeight = 340;
             else
                 _resultDetailListHeight = null;
 
@@ -1426,6 +1488,92 @@ namespace DataSync.UI
         }
 
         #endregion ResultDetailListExpand Command
+
+        #region ZoomToDetail Command
+
+        private ICommand _zoomToDetailCommand;
+
+        /// <summary>
+        /// Create the ZoomToDetail button command.
+        /// </summary>
+        /// <value></value>
+        /// <returns></returns>
+        /// <remarks></remarks>
+        public ICommand ZoomToDetailCommand
+        {
+            get
+            {
+                if (_zoomToDetailCommand == null)
+                {
+                    Action<object> zoomToDetailAction = new(ZoomToDetailCommandClick);
+                    _zoomToDetailCommand = new RelayCommand(zoomToDetailAction, param => ZoomToDetailEnabled);
+                }
+                return _zoomToDetailCommand;
+            }
+        }
+
+        /// <summary>
+        /// Handles the event when the ZoomToDetail button is clicked.
+        /// </summary>
+        /// <param name="param"></param>
+        /// <remarks></remarks>
+        private void ZoomToDetailCommandClick(object param)
+        {
+            // Zoom to the feature for the selected result detail item (don't wait).
+            ZoomToDetailAsync(_resultDetailListSelectedIndex);
+        }
+
+        /// <summary>
+        /// Zoom to the detail feature for the selected result item.
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns></returns>
+        public async Task ZoomToDetailAsync(int index)
+        {
+            // Skip if no item is selected.
+            if (index == -1)
+                return;
+
+            // Clear any messages.
+            ClearMessage();
+
+            // Get the selected item.
+            ResultDetail resultDetail = _resultDetailList[index];
+
+            // Get the type of the selected result.
+            string resultType = resultDetail.Type;
+
+            // Clear the local layer features selection (don't wait).
+            await _mapFunctions.ClearLayerSelectionAsync(_localLayer);
+
+            // Clear the remote layer features selection (don't wait).
+            await _mapFunctions.ClearLayerSelectionAsync(_remoteLayer);
+
+            // If the result type is an empty geometry.
+            if (resultType == "Empty")
+            {
+                return;
+            }
+            //If the result type is a deleted feature.
+            else if (resultType == "Deleted")
+            {
+                // Get the key of the selected result.
+                string oldRef = resultDetail.OldRef?.Trim();
+
+                // Zoom to the selected result.
+                await ZoomToFeatureAsync(_remoteLayer, oldRef);
+            }
+            else
+            {
+                // Get the key of the selected result.
+                string newRef = resultDetail.NewRef?.Trim();
+
+                // Zoom to the selected result.
+                await ZoomToFeatureAsync(_localLayer, newRef);
+            }
+        }
+
+        #endregion ZoomToDetail Command
 
         #region Debugging Aides
 
@@ -1487,6 +1635,77 @@ namespace DataSync.UI
         #endregion INotifyPropertyChanged Members
     }
 
+    #region TableSummary Class
+
+    /// <summary>
+    /// TableSummary to display.
+    /// </summary>
+    public class TableSummary : INotifyPropertyChanged
+    {
+        #region Fields
+
+        public string Table { get; set; }
+
+        public long Count { get; set; }
+
+        public long Errors { get; set; }
+
+        public long Duplicates { get; set; }
+
+        public string ToolTip { get; set; }
+
+        private bool _isSelected;
+
+        public bool IsSelected
+        {
+            get { return _isSelected; }
+            set
+            {
+                _isSelected = value;
+
+                OnPropertyChanged(nameof(IsSelected));
+            }
+        }
+
+        #endregion Fields
+
+        #region Creator
+
+        public TableSummary()
+        {
+            // constructor takes no arguments.
+        }
+
+        #endregion Creator
+
+        #region INotifyPropertyChanged Members
+
+        /// <summary>
+        /// Raised when a property on this object has a new value.
+        /// </summary>
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        /// <summary>
+        /// Raises this object's PropertyChanged event.
+        /// </summary>
+        /// <param name="propertyName">The property that has a new value.</param>
+        internal virtual void OnPropertyChanged(string propertyName)
+        {
+            //VerifyPropertyName(propertyName);
+
+            PropertyChangedEventHandler handler = PropertyChanged;
+            if (handler != null)
+            {
+                PropertyChangedEventArgs e = new(propertyName);
+                handler(this, e);
+            }
+        }
+
+        #endregion INotifyPropertyChanged Members
+    }
+
+    #endregion TableSummary Class
+
     #region ResultSummary Class
 
     /// <summary>
@@ -1498,7 +1717,7 @@ namespace DataSync.UI
 
         public string Type { get; set; }
 
-        public int Count { get; set; }
+        public long Count { get; set; }
 
         public string Desc { get; set; }
 
@@ -1529,10 +1748,9 @@ namespace DataSync.UI
             Type = summaryType;
         }
 
-        public ResultSummary(string summaryType, int OrderBy, int summaryCount)
+        public ResultSummary(string summaryType, int summaryCount)
         {
             Type = summaryType;
-            OrderBy = OrderBy;
             Count = summaryCount;
         }
 

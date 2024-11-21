@@ -20,7 +20,6 @@
 // along with with program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
-using System.Collections.Generic;
 using System.Windows;
 using System.Xml;
 using MessageBox = ArcGIS.Desktop.Framework.Dialogs.MessageBox;
@@ -183,6 +182,16 @@ namespace DataSync
                 throw new("Could not locate item 'LocalLayer' in the XML profile.");
             }
 
+            // The local layer selection where clause (if required).
+            try
+            {
+                _localClause = _xmlDataSync["LocalClause"].InnerText;
+            }
+            catch
+            {
+                throw new("Could not locate item 'LocalClause' in the XML profile.");
+            }
+
             // The name of the remote table in SQL Server containing the remote features.
             try
             {
@@ -191,6 +200,16 @@ namespace DataSync
             catch
             {
                 throw new("Could not locate item 'RemoteTable' in the XML profile.");
+            }
+
+            // The remote table selection where clause (if required).
+            try
+            {
+                _remoteClause = _xmlDataSync["RemoteClause"].InnerText;
+            }
+            catch
+            {
+                throw new("Could not locate item 'RemoteClause' in the XML profile.");
             }
 
             // The name of the layer in GIS displaying the remote features from SQL Server.
@@ -338,11 +357,25 @@ namespace DataSync
             get { return _localLayer; }
         }
 
+        private string _localClause;
+
+        public string LocalClause
+        {
+            get { return _localClause; }
+        }
+
         private string _remoteTable;
 
         public string RemoteTable
         {
             get { return _remoteTable; }
+        }
+
+        private string _remoteClause;
+
+        public string RemoteClause
+        {
+            get { return _remoteClause; }
         }
 
         private string _remoteLayer;

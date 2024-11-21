@@ -25,7 +25,7 @@ used by the ArcGIS Pro add-in to select and export GIS data for partners.
 
   <!-- The existing file location where log files will be saved with output messages. -->
   <LogFilePath>
-	<value>H:\Data\Thames\ExtractorExtracts\Logfiles</value>
+	<value>D:\Data Tools\DataSync\Logfiles</value>
   </LogFilePath>
 
   <!-- The location of the SDE file that specifies which SQL Server database to connect to. -->
@@ -38,40 +38,52 @@ used by the ArcGIS Pro add-in to select and export GIS data for partners.
 	<value>dbo</value>
   </DatabaseSchema>
 
-  <!-- The stored procedure to execute spatial selection in SQL Server. -->
+  <!-- The stored procedure to compare the local layer and remote table in SQL Server. -->
   <CheckStoredProcedure>
-	<value>AFSelectSppRecords</value>
+	<value>AFCompareSites</value>
   </CheckStoredProcedure>
 
-  <!-- The stored procedure to execute non-spatial subset selection in SQL Server. -->
-  <UploadStoredProcedure>
-	<value>AFSelectSppSubset2</value>
-  </UploadStoredProcedure>
+  <!-- The stored procedure to update the remote table in SQL Server. -->
+  <UpdateStoredProcedure>
+	<value>AFSyncSites</value>
+  </UpdateStoredProcedure>
 
-  <!-- The stored procedure to clear selection in SQL Server. -->
+  <!-- The stored procedure to clear the temporary tables in SQL Server. -->
   <ClearStoredProcedure>
-	<value>HLClearSpatialSubset</value>
+	<value>AFClearSitesTemp</value>
   </ClearStoredProcedure>
 
-  <!-- The name of the partner GIS layer in SQL Server used to select the records. -->
-  <LocalTable>
-	<value>CombinedExtractPolygons</value>
-  </LocalTable>
+  <!-- The name of the local layer in GIS containing the features. -->
+  <LocalLayer>
+	<value>OpenSpace_Sites</value>
+  </LocalLayer>
 
-  <!-- The name of the column in the partner GIS layer containing the partner name passed to SQL
-       Server by the tool to use as the partner's boundary for selecting the records. -->
+  <!-- The local layer selection where clause (if required). -->
+  <LocalClause>
+	<value></value>
+  </LocalClause>
+
+  <!-- The name of the remote table in SQL Server containing the remote features. -->
   <RemoteTable>
-	<value>PartnerName</value>
+	<value>OpenSpace_Sites</value>
   </RemoteTable>
 
-  <!-- The name of the column in the partner GIS layer containing the abbreviated name passed to
-       SQL Server by the tool to use as the sub-folder name for the destination of extracted
-       records. -->
+  <!-- The remote table selection where clause (if required). -->
+  <RemoteClause>
+	<value>Deleted = 0</value>
+  </RemoteClause>
+
+  <!-- The name of the layer in GIS displaying the remote features from SQL Server. -->
+  <RemoteLayer>
+	<value>OpenSpace_Sites_Remote</value>
+  </RemoteLayer>
+
+  <!-- The name of the key column in the local layer and remote table. -->
   <KeyColumn>
-	<value>ShortName</value>
+	<value>SiteID</value>
   </KeyColumn>
 
-  <!-- The name of the column in the partner GIS layer containing the spatial geometry. -->
+  <!-- The name of the spatial column in the local layer and remote table. -->
   <SpatialColumn>
 	<value>Shape</value>
   </SpatialColumn>

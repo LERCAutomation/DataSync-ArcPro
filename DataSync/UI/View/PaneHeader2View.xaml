@@ -5,9 +5,14 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:controls="clr-namespace:ArcGIS.Desktop.Framework.Controls;assembly=ArcGIS.Desktop.Framework"
              xmlns:local="clr-namespace:DataSync.UI"
+             xmlns:converter="clr-namespace:DataTools"
              d:DataContext="{d:DesignInstance Type=local:PaneHeader2ViewModel}"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="300">
+
+    <UserControl.Resources>
+        <converter:CountToStringConverter x:Key="CountToStringConverter" />
+    </UserControl.Resources>
 
     <DockPanel MinWidth="270"
                Margin="6,6,6,6">
@@ -25,7 +30,7 @@
             <Grid Name="GridTableSummary" Grid.Row="0" Margin="0,0,0,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="63" />
                 </Grid.RowDefinitions>
 
                 <Label Name="LabelTableSummary"
@@ -35,17 +40,70 @@
                        Margin="0,0,0,2"
                        Padding="0"
                        VerticalAlignment="Center" />
-                <TextBox Name="TextBoxTableSummary"
-                         Text="{Binding TableSummaryText}"
-                         Grid.Row="1"
-                         Grid.Column="0"
-                         Height="35"
-                         Margin="0,0,0,0"
-                         Padding="0,1,0,0"
-                         IsEnabled="True"
-                         IsReadOnly="True"
-                         IsTabStop="False"
-                         VerticalAlignment="Top" />
+                <ListView Name="ListViewTableSummary"
+                          Grid.Row="1"
+                          Grid.Column="0"
+                          ItemsSource="{Binding TableSummaryList}"
+                          SelectionMode="Single">
+
+                    <ListView.View>
+                        <GridView AllowsColumnReorder="False">
+                            <GridView.ColumnHeaderContainerStyle>
+                                <Style TargetType="GridViewColumnHeader">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </Style>
+                            </GridView.ColumnHeaderContainerStyle>
+                            <GridViewColumn Header="Table" Width="70">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Left" Text="{Binding Table}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Count" Width="70">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Count, Converter={StaticResource CountToStringConverter}}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Errors" Width="70">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Errors, Converter={StaticResource CountToStringConverter}}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Duplicates" Width="70">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Duplicates, Converter={StaticResource CountToStringConverter}}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Focusable" Value="False" />
+                            <Setter Property="ToolTip" Value="{Binding ToolTip}" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="IsSelected" Value="{Binding IsSelected}" />
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="true">
+                                    <Setter Property="Background" Value="LightSkyBlue" />
+                                    <Setter Property="BorderBrush" Value="DodgerBlue" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="DodgerBlue" />
+                                    <Setter Property="BorderBrush" Value="DodgerBlue" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                </ListView>
             </Grid>
 
             <Grid Name="GridButtons" Grid.Row="1" Margin="0,4,0,0">
@@ -76,7 +134,7 @@
             <Grid Name="GridResultSummary" Grid.Row="2" Margin="0,4,0,4" Visibility="{Binding ResultVisibility}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="162" />
+                    <RowDefinition Height="182" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -92,9 +150,7 @@
                 <ListView Name="ListViewResultSummary"
                           Grid.Row="1"
                           Grid.Column="0"
-                          HorizontalContentAlignment="Right"
                           ItemsSource="{Binding ResultSummaryList}"
-                          MouseDoubleClick="ListViewResultSummary_MouseDoubleClick"
                           SelectionChanged="ListViewResultSummary_SelectionChanged"
                           SelectedIndex="{Binding ResultSummaryListSelectedIndex}"
                           SelectionMode="Single">
@@ -106,21 +162,21 @@
                                     <Setter Property="Visibility" Value="Visible" />
                                 </Style>
                             </GridView.ColumnHeaderContainerStyle>
-                            <GridViewColumn Header="Type" Width="62">
+                            <GridViewColumn Header="Type" Width="64">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock HorizontalAlignment="Left" Text="{Binding Type}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="Count" Width="50">
+                            <GridViewColumn Header="Count" Width="60">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Count}" />
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Count, Converter={StaticResource CountToStringConverter}}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="Description" Width="238">
+                            <GridViewColumn Header="Description" Width="226">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock HorizontalAlignment="Left" Text="{Binding Desc}" />
@@ -131,6 +187,7 @@
                     </ListView.View>
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
+                            <Setter Property="ToolTip" Value="Select to view result details" />
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                             <Setter Property="IsSelected" Value="{Binding IsSelected}" />
                             <Style.Triggers>
@@ -148,6 +205,15 @@
                         </Style>
                     </ListView.ItemContainerStyle>
                 </ListView>
+                <!-- <Button Name="ButtonLoadResults"
+                    Grid.Row="1"
+                    Grid.Column="0"
+                    Margin="0,0,0,0"
+                    IsEnabled="{Binding Path=LoadResultsEnabled}"
+                    Command="{Binding Path=LoadResultsCommand}"
+                    IsCancel="False"
+                    Visibility="Hidden">
+                </Button> -->
             </Grid>
 
             <Grid Name="GridResultDetail" Grid.Row="3" Margin="0,4,0,4" Visibility="{Binding ResultVisibility}">
@@ -160,7 +226,7 @@
                 </Grid.ColumnDefinitions>
 
                 <Label Name="LabelResultDetail"
-                       Content="Result Detail:"
+                       Content="Result Details:"
                        Grid.Row="0"
                        Grid.Column="0"
                        Margin="0,0,0,2"
@@ -169,7 +235,6 @@
                 <ListView Name="ListViewResultDetail"
                           Grid.Row="1"
                           Grid.Column="0"
-                          HorizontalContentAlignment="Stretch"
                           ItemsSource="{Binding ResultDetailList}"
                           MouseDoubleClick="ListViewResultDetail_MouseDoubleClick"
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -183,7 +248,7 @@
                                     <Setter Property="Visibility" Value="Visible" />
                                 </Style>
                             </GridView.ColumnHeaderContainerStyle>
-                            <GridViewColumn Header="Type" Width="62">
+                            <GridViewColumn Header="Type" Width="64">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock HorizontalAlignment="Stretch" Text="{Binding Type}" />
@@ -222,6 +287,7 @@
                     </ListView.View>
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
+                            <Setter Property="ToolTip" Value="Double-click to zoom to feature" />
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                             <Setter Property="IsSelected" Value="{Binding IsSelected}" />
                             <Style.Triggers>
@@ -239,6 +305,15 @@
                         </Style>
                     </ListView.ItemContainerStyle>
                 </ListView>
+                <Button Name="ButtonZoomToDetail"
+                    Grid.Row="1"
+                    Grid.Column="0"
+                    Margin="0,0,0,0"
+                    IsEnabled="{Binding Path=ZoomToDetailEnabled}"
+                    Command="{Binding Path=ZoomToDetailCommand}"
+                    IsCancel="False"
+                    Visibility="Hidden">
+                </Button>
 
                 <Button Name="ButtonResultDetailListExpand"
                         Grid.Row="1"

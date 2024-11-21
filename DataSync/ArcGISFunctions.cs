@@ -1,4 +1,4 @@
-﻿// The DataTools are a suite of ArcGIS Pro addins used to extract
+﻿// The DataTools are a suite of ArcGIS Pro addins used to extract, sync
 // and manage biodiversity information from ArcGIS Pro and SQL Server
 // based on pre-defined or user specified criteria.
 //
@@ -93,7 +93,7 @@ namespace DataTools
         /// <summary>
         /// Get the active map view.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>MapView</returns>
         internal static MapView GetActiveMapView()
         {
             // Get the active map view.
@@ -108,6 +108,7 @@ namespace DataTools
         /// Pause or resume bool in the active map.
         /// </summary>
         /// <param name="pause"></param>
+        /// <returns></returns>
         public void PauseDrawing(bool pause)
         {
             _activeMapView.DrawingPaused = pause;
@@ -154,6 +155,8 @@ namespace DataTools
         /// Add a layer to the active map.
         /// </summary>
         /// <param name="url"></param>
+        /// <param name="index"></param>
+        /// <param name="layerName"></param>
         /// <returns>bool</returns>
         public async Task<bool> AddLayerToMapAsync(string url, int index = 0, string layerName = "")
         {
@@ -294,6 +297,7 @@ namespace DataTools
         /// Zoom to a layer for a given ratio or scale.
         /// </summary>
         /// <param name="layerName"></param>
+        /// <param name="selectedOnly"></param>
         /// <param name="ratio"></param>
         /// <param name="scale"></param>
         /// <returns>bool</returns>
@@ -397,6 +401,8 @@ namespace DataTools
             if (layers == null)
                 return 0;
 
+            int posIndex = 0;
+
             try
             {
                 for (int index = 0; index < _activeMap.Layers.Count; index++)
@@ -409,10 +415,10 @@ namespace DataTools
             catch
             {
                 // Handle exception.
-                return 0;
+                return posIndex;
             }
 
-            return 0;
+            return posIndex;
         }
 
         /// <summary>
@@ -485,7 +491,7 @@ namespace DataTools
         public async Task<int> AddIncrementalNumbersAsync(string outputFeatureClass, string outputLayerName, string labelFieldName, string keyFieldName, int startNumber = 1)
         {
             // Check the input parameters.
-            if (!await ArcGISFunctions.FeatureClassExistsAsync(outputFeatureClass))
+            if (!await ArcGISFunctions.FCExistsAsync(outputFeatureClass))
                 return -1;
 
             if (!await FieldExistsAsync(outputLayerName, labelFieldName))
@@ -584,7 +590,7 @@ namespace DataTools
             catch
             {
                 // Handle Exception.
-                return 0;
+                return -1;
             }
 
             return labelMax;
@@ -601,7 +607,8 @@ namespace DataTools
         /// <param name="radiusColumn"></param>
         /// <param name="radiusText"></param>
         /// <returns>bool</returns>
-        public async Task<bool> UpdateFeaturesAsync(string layerName, string siteColumn, string siteName, string orgColumn, string orgName, string radiusColumn, string radiusText)
+        public async Task<bool> UpdateFeaturesAsync(string layerName, string siteColumn, string siteName,
+            string orgColumn, string orgName, string radiusColumn, string radiusText)
         {
             // Check the input parameters.
             if (String.IsNullOrEmpty(layerName))
@@ -824,22 +831,21 @@ namespace DataTools
         /// Count the number of selected features in a feature layer.
         /// </summary>
         /// <param name="layerName"></param>
-        /// <returns></returns>
-        public long CountSelectedFeatures(string layerName)
+        /// <returns>long</returns>
+        public long GetSelectedFeatureCount(string layerName)
         {
-            long selectedCount = -1;
-
             // Check there is an input feature layer name.
             if (String.IsNullOrEmpty(layerName))
-                return selectedCount;
+                return -1;
 
+            long selectedCount;
             try
             {
                 // Find the feature layerName by name if it exists. Only search existing layers.
                 FeatureLayer featurelayer = FindLayer(layerName);
 
                 if (featurelayer == null)
-                    return selectedCount;
+                    return -1;
 
                 // Select the features matching the search clause.
                 selectedCount = featurelayer.SelectionCount;
@@ -847,7 +853,7 @@ namespace DataTools
             catch
             {
                 // Handle Exception.
-                return selectedCount;
+                return -1;
             }
 
             return selectedCount;
@@ -948,7 +954,7 @@ namespace DataTools
         /// </summary>
         /// <param name="fields"></param>
         /// <param name="fieldName"></param>
-        /// <returns>IReadOnlyList<ArcGIS.Core.Data.Field></returns>
+        /// <returns>bool</returns>
         public static bool FieldExists(IReadOnlyList<ArcGIS.Core.Data.Field> fields, string fieldName)
         {
             bool fldFound = false;
@@ -1124,12 +1130,14 @@ namespace DataTools
         /// Calculate the total row length for a feature class
         /// </summary>
         /// <param name="layerName"></param>
-        /// <returns>bool</returns>
+        /// <returns>int</returns>
         public async Task<int> GetFCRowLengthAsync(string layerName)
         {
+            int rowLength = 0;
+
             // Check there is an input feature layer name.
             if (String.IsNullOrEmpty(layerName))
-                return 0;
+                return rowLength;
 
             try
             {
@@ -1137,12 +1145,10 @@ namespace DataTools
                 FeatureLayer featurelayer = FindLayer(layerName);
 
                 if (featurelayer == null)
-                    return 0;
+                    return rowLength;
 
                 IReadOnlyList<ArcGIS.Core.Data.Field> fields = null;
                 List<string> fieldList = [];
-
-                int rowLength = 1;
 
                 await QueuedTask.Run(() =>
                 {
@@ -1173,13 +1179,15 @@ namespace DataTools
                     }
                 });
 
-                return rowLength;
+                rowLength += 1;
             }
             catch
             {
                 // Handle Exception.
-                return 0;
+                return rowLength;
             }
+
+            return rowLength;
         }
 
         /// <summary>
@@ -1187,7 +1195,7 @@ namespace DataTools
         /// </summary>
         /// <param name="layerName"></param>
         /// <param name="fieldList"></param>
-        /// <returns></returns>
+        /// <returns>bool</returns>
         public async Task<bool> KeepSelectedFieldsAsync(string layerName, List<string> fieldList)
         {
             // Check the input parameters.
@@ -1300,7 +1308,7 @@ namespace DataTools
         /// Get the full layer path name for a layer name in the map (i.e.
         /// to include any parent group names.
         /// </summary>
-        /// <param name="layer"></param>
+        /// <param name="layerName"></param>
         /// <returns>string</returns>
         public string GetLayerPath(string layerName)
         {
@@ -1331,7 +1339,7 @@ namespace DataTools
         /// </summary>
         /// <param name="featureLayer"></param>
         /// <returns>string: point, line, polygon</returns>
-        public string GetFeatureClassType(FeatureLayer featureLayer)
+        public string GetFCType(FeatureLayer featureLayer)
         {
             // Check there is an input feature layer.
             if (featureLayer == null)
@@ -1369,7 +1377,7 @@ namespace DataTools
         /// </summary>
         /// <param name="layerName"></param>
         /// <returns>string: point, line, polygon</returns>
-        public string GetFeatureClassType(string layerName)
+        public string GetFCType(string layerName)
         {
             // Check there is an input feature layer name.
             if (String.IsNullOrEmpty(layerName))
@@ -1383,7 +1391,7 @@ namespace DataTools
                 if (layer == null)
                     return null;
 
-                return GetFeatureClassType(layer);
+                return GetFCType(layer);
             }
             catch
             {
@@ -2278,10 +2286,10 @@ namespace DataTools
             int ignoreField = -1;
 
             int intFieldCount;
-            IReadOnlyList<ArcGIS.Core.Data.Field> fields;
-
             try
             {
+                IReadOnlyList<ArcGIS.Core.Data.Field> fields;
+
                 if (isSpatial)
                 {
                     // Get the list of fields for the input table.
@@ -2409,6 +2417,7 @@ namespace DataTools
 
                         // Write the row string to the output file.
                         txtFile.WriteLine(rowStr);
+                        intLineCount++;
                     }
                     // Dispose of the objects.
                     rowCursor.Dispose();
@@ -2446,7 +2455,7 @@ namespace DataTools
         /// <param name="filePath"></param>
         /// <param name="fileName"></param>
         /// <returns>bool</returns>
-        public static async Task<bool> FeatureClassExistsAsync(string filePath, string fileName)
+        public static async Task<bool> FCExistsAsync(string filePath, string fileName)
         {
             // Check there is an input file path.
             if (String.IsNullOrEmpty(filePath))
@@ -2473,7 +2482,7 @@ namespace DataTools
             {
                 try
                 {
-                    return await FeatureClassExistsGDBAsync(filePath, fileName);
+                    return await FCExistsGDBAsync(filePath, fileName);
                 }
                 catch
                 {
@@ -2488,13 +2497,13 @@ namespace DataTools
         /// </summary>
         /// <param name="fullPath"></param>
         /// <returns>bool</returns>
-        public static async Task<bool> FeatureClassExistsAsync(string fullPath)
+        public static async Task<bool> FCExistsAsync(string fullPath)
         {
             // Check there is an input file path.
             if (String.IsNullOrEmpty(fullPath))
                 return false;
 
-            return await FeatureClassExistsAsync(FileFunctions.GetDirectoryName(fullPath), FileFunctions.GetFileName(fullPath));
+            return await FCExistsAsync(FileFunctions.GetDirectoryName(fullPath), FileFunctions.GetFileName(fullPath));
         }
 
         /// <summary>
@@ -2503,7 +2512,7 @@ namespace DataTools
         /// <param name="filePath"></param>
         /// <param name="fileName"></param>
         /// <returns>bool</returns>
-        public static async Task<bool> DeleteFeatureClassAsync(string filePath, string fileName)
+        public static async Task<bool> DeleteFCAsync(string filePath, string fileName)
         {
             // Check there is an input file path.
             if (String.IsNullOrEmpty(filePath))
@@ -2515,7 +2524,7 @@ namespace DataTools
 
             string featureClass = filePath + @"\" + fileName;
 
-            return await DeleteFeatureClassAsync(featureClass);
+            return await DeleteFCAsync(featureClass);
         }
 
         /// <summary>
@@ -2523,7 +2532,7 @@ namespace DataTools
         /// </summary>
         /// <param name="fileName"></param>
         /// <returns>bool</returns>
-        public static async Task<bool> DeleteFeatureClassAsync(string fileName)
+        public static async Task<bool> DeleteFCAsync(string fileName)
         {
             // Check there is an input file name.
             if (String.IsNullOrEmpty(fileName))
@@ -2793,35 +2802,127 @@ namespace DataTools
         /// </summary>
         /// <param name="layer"></param>
         /// <param name="whereClause"></param>
-        /// <returns>bool</returns>
-        public static async Task<long> CountFeaturesAsync(FeatureLayer layer, string whereClause)
+        /// <param name="subfields"></param>
+        /// <param name="prefixClause"></param>
+        /// <param name="postfixClause"></param>
+        /// <returns>long</returns>
+        public static async Task<long> GetFeaturesCountAsync(FeatureLayer layer, string whereClause = null, string subfields = null, string prefixClause = null, string postfixClause = null)
         {
-            long featureCount = 0;
-
             // Check if there is an input layer name.
             if (layer == null)
-                return featureCount;
+                return -1;
 
+            long featureCount = 0;
             try
             {
                 // Create a query filter using the where clause.
                 QueryFilter queryFilter = new();
 
-                if (whereClause != null)
+                // Apply where clause.
+                if (!string.IsNullOrEmpty(whereClause))
                     queryFilter.WhereClause = whereClause;
 
-                featureCount = await QueuedTask.Run(() =>
+                // Apply subfields clause.
+                if (!string.IsNullOrEmpty(subfields))
+                    queryFilter.SubFields = subfields;
+
+                // Apply prefix clause.
+                if (!string.IsNullOrEmpty(prefixClause))
+                    queryFilter.PrefixClause = prefixClause;
+
+                // Apply postfix clause.
+                if (!string.IsNullOrEmpty(postfixClause))
+                    queryFilter.PostfixClause = postfixClause;
+
+                await QueuedTask.Run(() =>
                 {
                     /// Count the number of features matching the search clause.
                     using FeatureClass featureClass = layer.GetFeatureClass();
 
-                    return featureClass.GetCount(queryFilter);
+                    featureCount = featureClass.GetCount(queryFilter);
                 });
             }
             catch
             {
                 // Handle Exception.
-                return 0;
+                return -1;
+            }
+
+            return featureCount;
+        }
+
+        /// <summary>
+        /// Count the duplicate features in a layer using a search where clause.
+        /// </summary>
+        /// <param name="layer"></param>
+        /// <param name="keyField"></param>
+        /// <param name="whereClause"></param>
+        /// <returns>long</returns>
+        public static async Task<long> GetDuplicateFeaturesCountAsync(FeatureLayer layer, string keyField, string whereClause = null)
+        {
+            // Check if there is an input layer name.
+            if (layer == null)
+                return -1;
+
+            // Check if there is a input key field.
+            if (string.IsNullOrEmpty(keyField))
+                return -1;
+
+            long featureCount = 0;
+            try
+            {
+                // Create a query filter using the where clause.
+                QueryFilter queryFilter = new();
+
+                // Apply where clause.
+                if (!string.IsNullOrEmpty(whereClause))
+                    queryFilter.WhereClause = whereClause;
+
+                // Apply subfields clause.
+                if (!string.IsNullOrEmpty(keyField))
+                    queryFilter.SubFields = keyField;
+
+                List<string> keys = [];
+
+                await QueuedTask.Run(() =>
+                {
+                    /// Get the feature class for the layer.
+                    using FeatureClass featureClass = layer.GetFeatureClass();
+
+                    // Create a cursor of the features.
+                    using RowCursor rowCursor = featureClass.Search(queryFilter);
+
+                    // Loop through the feature class/table using the cursor.
+                    while (rowCursor.MoveNext())
+                    {
+                        // Get the current row.
+                        using Row record = rowCursor.Current;
+
+                        // Get the key value.
+                        string key = Convert.ToString(record[keyField]);
+                        key ??= "";
+
+                        // Add the key to the list of keys.
+                        keys.Add(key);
+                    }
+                    // Dispose of the objects.
+                    featureClass.Dispose();
+                    rowCursor.Dispose();
+
+                    // Get a list of any duplicate keys.
+                    List<string> duplicateKeys = keys.GroupBy(x => x)
+                      .Where(g => g.Count() > 1)
+                      .Select(y => y.Key)
+                      .ToList();
+
+                    // Return how many duplicate keys there are.
+                    featureCount = duplicateKeys.Count;
+                });
+            }
+            catch
+            {
+                // Handle Exception.
+                return -1;
             }
 
             return featureCount;
@@ -3326,7 +3427,7 @@ namespace DataTools
         /// Create a new file geodatabase.
         /// </summary>
         /// <param name="fullPath"></param>
-        /// <returns>bool</returns>
+        /// <returns>Geodatabase</returns>
         public static Geodatabase CreateFileGeodatabase(string fullPath)
         {
             // Check if there is an input full path.
@@ -3358,7 +3459,7 @@ namespace DataTools
         /// <param name="filePath"></param>
         /// <param name="fileName"></param>
         /// <returns>bool</returns>
-        public static async Task<bool> FeatureClassExistsGDBAsync(string filePath, string fileName)
+        public static async Task<bool> FCExistsGDBAsync(string filePath, string fileName)
         {
             // Check there is an input file path.
             if (String.IsNullOrEmpty(filePath))

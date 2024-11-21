@@ -1,4 +1,4 @@
-﻿// The DataTools are a suite of ArcGIS Pro addins used to extract
+﻿// The DataTools are a suite of ArcGIS Pro addins used to extract, sync
 // and manage biodiversity information from ArcGIS Pro and SQL Server
 // based on pre-defined or user specified criteria.
 //
@@ -47,7 +47,7 @@ namespace DataTools
             _sdeFileName = sdeFileName;
 
             // Open a connection to the geodatabase (don't wait it will be checked later).
-            OpenGeodatabase();
+            OpenGeodatabaseAsync();
         }
 
         #endregion Constructor
@@ -116,7 +116,7 @@ namespace DataTools
         /// Open a SQL Server database using a .sde connection file.
         /// </summary>
         /// <returns></returns>
-        public async Task OpenGeodatabase()
+        public async Task OpenGeodatabaseAsync()
         {
             _geodatabase = null;
 
@@ -150,7 +150,8 @@ namespace DataTools
         /// <summary>
         /// Get all of the feature class and table names from the geodatabase.
         /// </summary>
-        /// <returns></returns>
+        /// <param name="objectsTable"></param>
+        /// <returns>bool</returns>
         public async Task<bool> GetTableNamesAsync(string objectsTable)
         {
             _tableNames = [];
@@ -158,7 +159,7 @@ namespace DataTools
             bool success = false;
 
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen) await OpenGeodatabaseAsync();
 
             // If still not open.
             if (!GeodatabaseOpen) return false;
@@ -220,7 +221,7 @@ namespace DataTools
             List<string> fieldNames = [];
 
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen) await OpenGeodatabaseAsync();
 
             // If still not open.
             if (!GeodatabaseOpen) return fieldNames;
@@ -263,7 +264,7 @@ namespace DataTools
             string fileName = FileFunctions.GetFileName(fullPath);
 
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen) await OpenGeodatabaseAsync();
 
             // If still not open.
             if (!GeodatabaseOpen) return fields;
@@ -357,7 +358,7 @@ namespace DataTools
             string fileName = FileFunctions.GetFileName(fullPath);
 
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen) await OpenGeodatabaseAsync();
 
             // If still not open.
             if (!GeodatabaseOpen) return false;
@@ -397,7 +398,15 @@ namespace DataTools
         /// <summary>
         /// Get all of the table sync results from the geodatabase.
         /// </summary>
-        /// <returns></returns>
+        /// <param name="resultsTable"></param>
+        /// <param name="typeColumn"></param>
+        /// <param name="orderColumn"></param>
+        /// <param name="descColumn"></param>
+        /// <param name="newRefColumn"></param>
+        /// <param name="newAreaColumn"></param>
+        /// <param name="oldRefColumn"></param>
+        /// <param name="oldAreaColumn"></param>
+        /// <returns>List<ResultDetail></returns>
         public async Task<List<ResultDetail>> GetSyncResultsAsync(string resultsTable, string typeColumn, string orderColumn,
             string descColumn, string newRefColumn, string oldRefColumn, string newAreaColumn, string oldAreaColumn)
         {
@@ -408,7 +417,7 @@ namespace DataTools
             List<ResultDetail> resultDetailList = [];
 
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen) await OpenGeodatabaseAsync();
 
             // If still not open.
             if (!GeodatabaseOpen) return null;
@@ -482,14 +491,14 @@ namespace DataTools
         /// </summary>
         /// <param name="sqlStatement"></param>
         /// <returns>bool</returns>
-        public async Task<bool> ExecuteSQLOnGeodatabase(string sqlStatement)
+        public async Task<bool> ExecuteSQLOnGeodatabaseAsync(string sqlStatement)
         {
             // Check there is a sql statement.
             if (String.IsNullOrEmpty(sqlStatement))
                 return false;
 
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen) await OpenGeodatabaseAsync();
 
             // If still not open.
             if (!GeodatabaseOpen) return false;
@@ -628,7 +637,7 @@ namespace DataTools
             StreamWriter txtFile = new(outFile, true);
 
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen) await OpenGeodatabaseAsync();
 
             // If still not open.
             if (!GeodatabaseOpen) return false;
@@ -719,7 +728,7 @@ namespace DataTools
         /// </summary>
         /// <param name="featureClassName"></param>
         /// <returns>bool</returns>
-        public async Task<bool> FeatureClassExistsAsync(string featureClassName)
+        public async Task<bool> FCExistsAsync(string featureClassName)
         {
             // Check there is an input feature class name.
             if (String.IsNullOrEmpty(featureClassName))
@@ -728,7 +737,7 @@ namespace DataTools
             bool exists = false;
 
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen) await OpenGeodatabaseAsync();
 
             // If still not open.
             if (!GeodatabaseOpen) return exists;
@@ -760,21 +769,26 @@ namespace DataTools
         /// Count the rows in a feature class within the database.
         /// </summary>
         /// <param name="featureClassName"></param>
-        /// <returns></returns>
-        public async Task<long> FeatureClassCountRowsAsync(string featureClassName, string whereClause)
+        /// <param name="whereClause"></param>
+        /// <param name="subfields"></param>
+        /// <param name="prefixClause"></param>
+        /// <param name="postfixClause"></param>
+        /// <returns>long</returns>
+        public async Task<long> GetFeaturesCountAsync(string featureClassName, string whereClause = null, string subfields = null, string prefixClause = null, string postfixClause = null)
         {
-            long featureCount = 0;
-
             // Check there is an input feature class name.
             if (String.IsNullOrEmpty(featureClassName))
                 return -1;
 
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen)
+                await OpenGeodatabaseAsync();
 
             // If still not open.
-            if (!GeodatabaseOpen) return featureCount;
+            if (!GeodatabaseOpen)
+                return -1;
 
+            long featureCount = 0;
             // Check to see if the table is a feature class.
             await QueuedTask.Run(() =>
             {
@@ -789,11 +803,114 @@ namespace DataTools
                     // Create a query filter using the where clause.
                     QueryFilter queryFilter = new();
 
-                    if (whereClause != null)
+                    // Apply where clause.
+                    if (!string.IsNullOrEmpty(whereClause))
                         queryFilter.WhereClause = whereClause;
+
+                    // Apply subfields clause.
+                    if (!string.IsNullOrEmpty(subfields))
+                        queryFilter.SubFields = subfields;
+
+                    // Apply prefix clause.
+                    if (!string.IsNullOrEmpty(prefixClause))
+                        queryFilter.PrefixClause = prefixClause;
+
+                    // Apply postfix clause.
+                    if (!string.IsNullOrEmpty(postfixClause))
+                        queryFilter.PostfixClause = postfixClause;
 
                     // Count the rows in the feature class.
                     featureCount = featureClass.GetCount(queryFilter);
+                }
+                catch
+                {
+                    // GetDefinition or open dataset throw an exception if the definition doesn't exist.
+                    featureCount = -1;
+                }
+            });
+
+            return featureCount;
+        }
+
+        /// <summary>
+        /// Count the duplicate rows in a feature class within the database
+        /// using a search where clause.
+        /// </summary>
+        /// <param name="featureClassName"></param>
+        /// <param name="keyField"></param>
+        /// <param name="whereClause"></param>
+        /// <returns></returns>
+        public async Task<long> GetDuplicateFeaturesCountAsync(string featureClassName, string keyField, string whereClause = null)
+        {
+            // Check there is an input feature class name.
+            if (String.IsNullOrEmpty(featureClassName))
+                return -1;
+
+            // Check if there is a input key field.
+            if (string.IsNullOrEmpty(keyField))
+                return -1;
+
+            // Open a connection to the geodatabase if not already open.
+            if (!GeodatabaseOpen)
+                await OpenGeodatabaseAsync();
+
+            // If still not open.
+            if (!GeodatabaseOpen)
+                return -1;
+
+            long featureCount = 0;
+            // Check to see if the table is a feature class.
+            await QueuedTask.Run(() =>
+            {
+                try
+                {
+                    // Try and get the feature class definition.
+                    using FeatureClassDefinition featureClassDefinition = _geodatabase.GetDefinition<FeatureClassDefinition>(featureClassName);
+
+                    // Open the feature class.
+                    using FeatureClass featureClass = _geodatabase.OpenDataset<FeatureClass>(featureClassName);
+
+                    // Create a query filter using the where clause.
+                    QueryFilter queryFilter = new();
+
+                    // Apply where clause.
+                    if (!string.IsNullOrEmpty(whereClause))
+                        queryFilter.WhereClause = whereClause;
+
+                    // Apply subfields clause.
+                    if (!string.IsNullOrEmpty(keyField))
+                        queryFilter.SubFields = keyField;
+
+                    List<string> keys = [];
+
+                    // Create a cursor of the features.
+                    using RowCursor rowCursor = featureClass.Search(queryFilter);
+
+                    // Loop through the feature class/table using the cursor.
+                    while (rowCursor.MoveNext())
+                    {
+                        // Get the current row.
+                        using Row record = rowCursor.Current;
+
+                        // Get the key value.
+                        string key = Convert.ToString(record[keyField]);
+                        key ??= "";
+
+                        // Add the key to the list of keys.
+                        keys.Add(key);
+                    }
+                    // Dispose of the objects.
+                    featureClass.Dispose();
+                    rowCursor.Dispose();
+
+                    // Get a list of any duplicate keys.
+                    List<string> duplicateKeys = keys.GroupBy(x => x)
+                      .Where(g => g.Count() > 1)
+                      .Select(y => y.Key)
+                      .ToList();
+
+                    // Return how many duplicate keys there are.
+                    featureCount = duplicateKeys.Count;
                 }
                 catch
                 {
@@ -823,7 +940,7 @@ namespace DataTools
             bool exists = false;
 
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen) await OpenGeodatabaseAsync();
 
             // If still not open.
             if (!GeodatabaseOpen) return exists;
@@ -856,20 +973,21 @@ namespace DataTools
         /// </summary>
         /// <param name="tableName"></param>
         /// <returns>long</returns>
-        public async Task<long> TableCountRowsAsync(string tableName)
+        public async Task<long> GetTableRowCountAsync(string tableName)
         {
             // Check there is an input table name.
             if (String.IsNullOrEmpty(tableName))
                 return -1;
 
-            long rows = 0;
-
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen)
+                await OpenGeodatabaseAsync();
 
             // If still not open.
-            if (!GeodatabaseOpen) return rows;
+            if (!GeodatabaseOpen)
+                return -1;
 
+            long rows = 0;
             // Check to see if the table is a table.
             await QueuedTask.Run(() =>
             {
@@ -898,20 +1016,22 @@ namespace DataTools
         /// Calculate the total row length in a table within the database.
         /// </summary>
         /// <param name="tableName"></param>
-        /// <returns>bool</returns>
-        public async Task<int> TableRowLength(string tableName)
+        /// <returns>int</returns>
+        public async Task<int> GetTableRowLengthAsync(string tableName)
         {
+            int rowLength = 0;
+
             // Check there is an input table name.
             if (String.IsNullOrEmpty(tableName))
                 return -1;
 
-            int rowLength = 0;
-
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen)
+                await OpenGeodatabaseAsync();
 
             // If still not open.
-            if (!GeodatabaseOpen) return -1;
+            if (!GeodatabaseOpen)
+                return -1;
 
             try
             {
@@ -961,7 +1081,7 @@ namespace DataTools
             bool success = false;
 
             // Open a connection to the geodatabase if not already open.
-            if (!GeodatabaseOpen) await OpenGeodatabase();
+            if (!GeodatabaseOpen) await OpenGeodatabaseAsync();
 
             // If still not open.
             if (!GeodatabaseOpen) return success;
