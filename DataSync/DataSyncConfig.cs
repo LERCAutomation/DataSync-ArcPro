@@ -145,11 +145,11 @@ namespace DataSync
             // The stored procedure to compare the local layer and remote table in SQL Server.
             try
             {
-                _checkStoredProcedure = _xmlDataSync["CheckStoredProcedure"].InnerText;
+                _compareStoredProcedure = _xmlDataSync["CompareStoredProcedure"].InnerText;
             }
             catch
             {
-                throw new("Could not locate item 'CheckStoredProcedure' in the XML profile.");
+                throw new("Could not locate item 'CompareStoredProcedure' in the XML profile.");
             }
 
             // The stored procedure to update the remote table in SQL Server.
@@ -329,11 +329,11 @@ namespace DataSync
             get { return _databaseSchema; }
         }
 
-        private string _checkStoredProcedure;
+        private string _compareStoredProcedure;
 
-        public string CheckStoredProcedure
+        public string CompareStoredProcedure
         {
-            get { return _checkStoredProcedure; }
+            get { return _compareStoredProcedure; }
         }
 
         private string _updateStoredProcedure;

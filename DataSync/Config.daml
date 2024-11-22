@@ -5,13 +5,13 @@
 		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 		xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
 
-	<AddInInfo id="{3b4733d2-72bc-4515-818d-c7681bc43db9}" version="1.0.0" desktopVersion="3.3.52636">
+	<AddInInfo id="{3b4733d2-72bc-4515-818d-c7681bc43db9}" version="1.0.1" desktopVersion="3.3.52636">
 		<Name>DataSync</Name>
 		<Description>DataSync is an ArcGIS .Net tool and associated SQL scripts to compare and sync map layers between ArcGIS and SQL Server.</Description>
 		<Image>Images\AddinDesktop32.png</Image>
 		<Author>Andy Foy, andy@andyfoyconsulting.co.uk</Author>
 		<Company>Andy Foy Consulting</Company>
-		<Date>21/11/2024 11:06:00 AM</Date>
+		<Date>22/11/2024 16:22:00 AM</Date>
 		<Subject>Framework, Geodatabase</Subject>
 		<!-- Note subject can be one or more of these topics:
                     Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->

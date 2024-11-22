@@ -27,23 +27,28 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <Grid Name="GridTableSummary" Grid.Row="0" Margin="0,0,0,0">
+            <Grid Name="GridTableCounts" Grid.Row="0" Margin="0,0,0,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="63" />
                 </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="22" />
+                </Grid.ColumnDefinitions>
 
-                <Label Name="LabelTableSummary"
-                       Content="Table Summary:"
+                <Label Name="LabelTableCounts"
+                       Content="Table Counts:"
                        Grid.Row="0"
                        Grid.Column="0"
                        Margin="0,0,0,2"
                        Padding="0"
                        VerticalAlignment="Center" />
-                <ListView Name="ListViewTableSummary"
+                <ListView Name="ListViewTableCounts"
                           Grid.Row="1"
                           Grid.Column="0"
-                          ItemsSource="{Binding TableSummaryList}"
+                          Margin="0,0,4,0"
+                          ItemsSource="{Binding TableCountsList}"
                           SelectionMode="Single">
 
                     <ListView.View>
@@ -104,6 +109,26 @@
                         </Style>
                     </ListView.ItemContainerStyle>
                 </ListView>
+
+                <Button Name="ButtonTableCountsListRefresh"
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Margin="0,0,0,0"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Padding="0"
+                        Width="22"
+                        Height="22"
+                        BorderThickness="0"
+                        Background="Transparent"
+                        FontWeight="Normal"
+                        VerticalAlignment="Center"
+                        IsEnabled="{Binding Path=TableCountsListEnabled}"
+                        Command="{Binding RefreshTableCountsCommand}"
+                        ToolTip="Refresh table counts"
+                        Style="{DynamicResource Esri_SimpleButton}">
+                    <Image Source="{Binding ButtonTableCountsListRefreshImg}" Width="16" Height="16" />
+                </Button>
             </Grid>
 
             <Grid Name="GridButtons" Grid.Row="1" Margin="0,4,0,0">
@@ -112,19 +137,20 @@
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="58" />
+                    <ColumnDefinition Width="62" />
+                    <ColumnDefinition Width="22" />
                 </Grid.ColumnDefinitions>
 
-                <Button Name="ButtonCheck"
-                        Grid.Column="3"
-                        Margin="0,0,0,0"
+                <Button Name="ButtonCompare"
+                        Grid.Column="1"
+                        Margin="0,0,4,0"
                         Padding="0"
                         MinWidth="0"
                         MinHeight="0"
-                        Command="{Binding Path=CheckCommand}"
+                        Command="{Binding Path=CompareCommand}"
                         IsCancel="False"
                         IsDefault="False"
-                        IsEnabled="{Binding Path=CheckButtonEnabled}"
+                        IsEnabled="{Binding Path=CompareButtonEnabled}"
                         Style="{DynamicResource Esri_SimpleButton}"
                         TabIndex="4"
                         Content="Compare"

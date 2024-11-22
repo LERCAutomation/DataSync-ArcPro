@@ -39,9 +39,9 @@ used by the ArcGIS Pro add-in to select and export GIS data for partners.
   </DatabaseSchema>
 
   <!-- The stored procedure to compare the local layer and remote table in SQL Server. -->
-  <CheckStoredProcedure>
+  <CompareStoredProcedure>
 	<value>AFCompareSites</value>
-  </CheckStoredProcedure>
+  </CompareStoredProcedure>
 
   <!-- The stored procedure to update the remote table in SQL Server. -->
   <UpdateStoredProcedure>

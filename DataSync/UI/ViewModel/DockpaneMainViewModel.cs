@@ -322,6 +322,17 @@ namespace DataSync.UI
             set { _formLoading = value; }
         }
 
+        private bool _compareRunning;
+
+        /// <summary>
+        /// Is the compare running?
+        /// </summary>
+        public bool CompareRunning
+        {
+            get { return _compareRunning; }
+            set { _compareRunning = value; }
+        }
+
         private bool _syncRunning;
 
         /// <summary>
@@ -373,9 +384,9 @@ namespace DataSync.UI
             {
                 DockpaneVisibility = Visibility.Visible;
 
-                // Reload the details of the local and remote tables (don't wait).
+                // Reload the local and remote table counts (don't wait).
                 if (MapView.Active != _activeMapView)
-                    _paneH2VM?.LoadTableDetailsAsync(true, false);
+                    _paneH2VM?.LoadTableCountsAsync(true, false);
 
                 // Save the active map view.
                 _activeMapView = MapView.Active;

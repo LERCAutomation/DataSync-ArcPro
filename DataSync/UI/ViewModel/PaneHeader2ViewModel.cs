@@ -48,9 +48,13 @@ namespace DataSync.UI
 
         private readonly DockpaneMainViewModel _dockPane;
 
+        private bool _countsLoaded = false;
         private bool _tablesLoaded = false;
+        private bool _localTableLoaded = false;
+        private bool _remoteTableLoaded = false;
+        private bool _tablesIdentical = true;
         private bool _syncErrors = false;
-        private bool _checkHasRun = false;
+        private bool _compareHasRun = false;
 
         private string _logFilePath;
         private string _logFile;
@@ -58,7 +62,7 @@ namespace DataSync.UI
         // Server fields.
         private string _sdeFileName;
         private string _defaultSchema;
-        private string _checkStoredProcedure;
+        private string _compareStoredProcedure;
         private string _updateStoredProcedure;
         private string _clearStoredProcedure;
 
@@ -137,7 +141,7 @@ namespace DataSync.UI
             // Get the relevant config file settings.
             _logFilePath = _toolConfig.LogFilePath;
             _defaultSchema = _toolConfig.DatabaseSchema;
-            _checkStoredProcedure = _toolConfig.CheckStoredProcedure;
+            _compareStoredProcedure = _toolConfig.CompareStoredProcedure;
             _updateStoredProcedure = _toolConfig.UpdateStoredProcedure;
             _clearStoredProcedure = _toolConfig.ClearStoredProcedure;
             _localLayer = _toolConfig.LocalLayer;
@@ -148,8 +152,8 @@ namespace DataSync.UI
             _keyColumn = _toolConfig.KeyColumn;
             _spatialColumn = _toolConfig.SpatialColumn;
 
-            // Clear the check has run flag.
-            _checkHasRun = false;
+            // Clear the compare flag.
+            _compareHasRun = false;
         }
 
         #endregion Creator
@@ -157,9 +161,21 @@ namespace DataSync.UI
         #region Controls Enabled
 
         /// <summary>
-        /// Can the check button be pressed?
+        /// Is the tables counts list enabled?
         /// </summary>
-        public bool CheckButtonEnabled
+        public bool TableCountsListEnabled
+        {
+            get
+            {
+                return ((_dockPane.ProcessStatus == null)
+                    && (_countsLoaded));
+            }
+        }
+
+        /// <summary>
+        /// Can the compare button be pressed?
+        /// </summary>
+        public bool CompareButtonEnabled
         {
             get
             {
@@ -169,7 +185,7 @@ namespace DataSync.UI
         }
 
         /// <summary>
-        /// Is the list of result summary enabled?
+        /// Is the list of result summary list enabled?
         /// </summary>
         public bool ResultSummaryListEnabled
         {
@@ -205,7 +221,7 @@ namespace DataSync.UI
         }
 
         /// <summary>
-        /// Is the list of result details enabled?
+        /// Is the list of result detail list enabled?
         /// </summary>
         public bool ResultDetailListEnabled
         {
@@ -223,7 +239,8 @@ namespace DataSync.UI
         {
             get
             {
-                return ((_checkHasRun)
+                return ((_compareHasRun)
+                    && (!_tablesIdentical)
                     && (_dockPane.ProcessStatus == null));
             }
         }
@@ -239,7 +256,7 @@ namespace DataSync.UI
         {
             get
             {
-                if ((_checkHasRun == false))
+                if ((_compareHasRun == false))
                     return Visibility.Hidden;
                 else
                     return Visibility.Visible;
@@ -253,7 +270,7 @@ namespace DataSync.UI
         {
             get
             {
-                if ((_checkHasRun == false))
+                if ((_compareHasRun == false))
                     return Visibility.Hidden;
                 else
                     return Visibility.Visible;
@@ -351,42 +368,42 @@ namespace DataSync.UI
 
         #endregion Message
 
-        #region Check Command
+        #region Compare Command
 
-        private ICommand _checkCommand;
+        private ICommand _compareCommand;
 
         /// <summary>
-        /// Create Check button command.
+        /// Create Compare button command.
         /// </summary>
         /// <value></value>
         /// <returns></returns>
         /// <remarks></remarks>
-        public ICommand CheckCommand
+        public ICommand CompareCommand
         {
             get
             {
-                if (_checkCommand == null)
+                if (_compareCommand == null)
                 {
-                    Action<object> checkAction = new(CheckCommandClick);
-                    _checkCommand = new RelayCommand(checkAction, param => CheckButtonEnabled);
+                    Action<object> compareAction = new(CompareCommandClick);
+                    _compareCommand = new RelayCommand(compareAction, param => CompareButtonEnabled);
                 }
 
-                return _checkCommand;
+                return _compareCommand;
             }
         }
 
         /// <summary>
-        /// Handles event when Check button is clicked.
+        /// Handles event when Compare button is clicked.
         /// </summary>
         /// <param name="param"></param>
         /// <remarks></remarks>
-        private void CheckCommandClick(object param)
+        private void CompareCommandClick(object param)
         {
-            // Run the check (don't wait).
-            CheckChangesAsync(true);
+            // Run the compare (don't wait).
+            CompareChangesAsync();
         }
 
-        #endregion Check Command
+        #endregion Compare Command
 
         #region Run Command
 
@@ -464,17 +481,29 @@ namespace DataSync.UI
 
         #region Properties
 
-        private ObservableCollection<TableSummary> _tableSummaryList;
+        private ObservableCollection<TableCount> _tableCountsList;
 
-        public ObservableCollection<TableSummary> TableSummaryList
+        public ObservableCollection<TableCount> TableCountsList
         {
             get
             {
-                return _tableSummaryList;
+                return _tableCountsList;
             }
             set
             {
-                _tableSummaryList = value;
+                _tableCountsList = value;
+            }
+        }
+
+        /// <summary>
+        /// Get the image for the TableCountsListRefresh button.
+        /// </summary>
+        public static ImageSource ButtonTableCountsListRefreshImg
+        {
+            get
+            {
+                var imageSource = System.Windows.Application.Current.Resources["GenericRefresh16"] as ImageSource;
+                return imageSource;
             }
         }
 
@@ -653,7 +682,7 @@ namespace DataSync.UI
         /// </summary>
         private void UpdateFormFields()
         {
-            OnPropertyChanged(nameof(CheckButtonEnabled));
+            OnPropertyChanged(nameof(CompareButtonEnabled));
             OnPropertyChanged(nameof(ResultSummaryList));
             OnPropertyChanged(nameof(ResultSummaryListEnabled));
             OnPropertyChanged(nameof(ResultDetailList));
@@ -693,30 +722,36 @@ namespace DataSync.UI
             ClearLogFile = _toolConfig.DefaultClearLogFile;
             OpenLogFile = _toolConfig.DefaultOpenLogFile;
 
-            // Reload the details of the local and remote tables.
-            await LoadTableDetailsAsync(reset, false);
+            // Reload the local and remote table counts.
+            await LoadTableCountsAsync(reset, false);
         }
 
         /// <summary>
-        /// Load the details of the local and remote tables.
+        /// Load the local and remote table counts.
         /// </summary>
         /// <param name="reset"></param>
         /// <param name="message"></param>
         /// <returns></returns>
-        public async Task LoadTableDetailsAsync(bool reset, bool message)
+        public async Task LoadTableCountsAsync(bool reset, bool message)
         {
             //// If already processing then exit.
             //if (_dockPane.ProcessStatus != null)
             //    return;
 
-            // Reset the check has run flag.
-            _checkHasRun = false;
+            // Reset the table counts loaded flag.
+            _countsLoaded = false;
+
+            // Reset the compare has run flag.
+            _compareHasRun = false;
 
             // Reset the tables loaded flag.
             _tablesLoaded = false;
 
             // Clear the local and remote feature counts.
-            TableSummaryList = [];
+            TableCountsList = [];
+
+            // Update the table counts list.
+            OnPropertyChanged(nameof(TableCountsList));
 
             // Clear the list of result summary and details.
             ClearFormLists();
@@ -746,7 +781,8 @@ namespace DataSync.UI
             _dockPane.ProgressUpdate(null, -1, -1);
 
             // Set flag to show the tables have been loaded.
-            _tablesLoaded = true;
+            if (_localTableLoaded && _remoteTableLoaded)
+                _tablesLoaded = true;
 
             // Indicate the refresh has finished.
             _dockPane.FormLoading = false;
@@ -777,7 +813,7 @@ namespace DataSync.UI
             string localToolTip = string.Format("{0} feature{1} with null or blank keys, {2} feature{3} with duplicate keys", _localBlankKeys, _localBlankKeys == 1 ? "" : "s", _localDuplicates, _localDuplicates == 1 ? "" : "s");
 
             // Add the local details to the table summary.
-            TableSummary tableSummary = new()
+            TableCount tableCount = new()
             {
                 Table = "Local",
                 Count = _localFeatures,
@@ -785,13 +821,13 @@ namespace DataSync.UI
                 Duplicates = _localDuplicates,
                 ToolTip = localToolTip
             };
-            _tableSummaryList.Add(tableSummary);
+            _tableCountsList.Add(tableCount);
 
             // Set the remote table tool tip.
             string remoteToolTip = string.Format("{0} feature{1} with null or blank keys, {2} feature{3} with duplicate keys", _remoteBlankKeys, _remoteBlankKeys == 1 ? "" : "s", _remoteDuplicates, _remoteDuplicates == 1 ? "" : "s");
 
             // Add the remote details to the table summary.
-            tableSummary = new()
+            tableCount = new()
             {
                 Table = "Remote",
                 Count = _remoteFeatures,
@@ -799,10 +835,14 @@ namespace DataSync.UI
                 Duplicates = _remoteDuplicates,
                 ToolTip = remoteToolTip
             };
-            _tableSummaryList.Add(tableSummary);
+            _tableCountsList.Add(tableCount);
 
-            // Update the table summary list.
-            OnPropertyChanged(nameof(TableSummaryList));
+            // Set table counts loaded flag.
+            _countsLoaded = true;
+
+            // Update the table counts list and refresh button.
+            OnPropertyChanged(nameof(TableCountsList));
+            OnPropertyChanged(nameof(TableCountsListEnabled));
 
             // Check the local and remote feature counts and
             // report any null, blank or duplicate keys.
@@ -820,6 +860,9 @@ namespace DataSync.UI
         /// <returns>string: error message</returns>
         public async Task<string> LoadLocalDetailsAsync()
         {
+            // Set flag to show the table has not loaded yet.
+            _localTableLoaded = false;
+
             if (_mapFunctions == null || _mapFunctions.MapName == null || MapView.Active.Map.Name != _mapFunctions.MapName)
             {
                 // Create a new map functions object.
@@ -862,6 +905,9 @@ namespace DataSync.UI
             whereClause = "(" + _keyColumn + " IS NOT NULL AND " + _keyColumn + " <> '')";
             _localDuplicates = await ArcGISFunctions.GetDuplicateFeaturesCountAsync(LocalFeatureLayer, _keyColumn, whereClause);
 
+            // Set flag to show the table has loaded.
+            _localTableLoaded = true;
+
             return null;
         }
 
@@ -871,6 +917,9 @@ namespace DataSync.UI
         /// <returns>string: error message</returns>
         public async Task<string> LoadRemoteDetailsAsync()
         {
+            // Set flag to show the table has not loaded yet.
+            _remoteTableLoaded = false;
+
             // Check if there is an active map. There's no point loading the remote details
             // when we can't load the local details.
             if (_mapFunctions.MapName == null)
@@ -900,6 +949,9 @@ namespace DataSync.UI
             whereClause = "((" + _remoteClause + ") AND (" + _keyColumn + " IS NOT NULL AND " + _keyColumn + " <> ''))";
             _remoteDuplicates = await _sqlFunctions.GetDuplicateFeaturesCountAsync(_remoteTable, _keyColumn, whereClause);
 
+            // Set flag to show the table has loaded.
+            _remoteTableLoaded = true;
+
             return null;
         }
 
@@ -924,18 +976,20 @@ namespace DataSync.UI
         }
 
         /// <summary>
-        /// Check the changes between the local layer and remote
-        /// table before updating.
+        /// Compare the local layer and remote table before updating.
         /// </summary>
         /// <param name="uploadLayer"></param>
         /// <returns>bool</returns>
-        private async Task<bool> CheckChangesAsync(bool uploadLayer)
+        private async Task<bool> CompareChangesAsync()
         {
             // Clear any messages.
             ClearMessage();
 
             // Reset the check has run flag.
-            _checkHasRun = false;
+            _compareHasRun = false;
+
+            // Indicate compare has started.
+            _dockPane.CompareRunning = true;
 
             // Expand the detail list (ready to be resized later).
             _resultDetailListHeight = null;
@@ -944,6 +998,34 @@ namespace DataSync.UI
             UpdateFormControls();
             _dockPane.RefreshPanel1Buttons();
 
+            // Peform the check between the local layer and remote table.
+            await PerformCheckAsync(true);
+
+            // Set the check has run flag.
+            _compareHasRun = true;
+
+            // Indicate compare has finished.
+            _dockPane.CompareRunning = false;
+
+            _dockPane.ProgressUpdate(null, -1, -1);
+
+            // Update the fields and buttons in the form.
+            UpdateFormControls();
+            _dockPane.RefreshPanel1Buttons();
+
+            // Force result detail list height to reset.
+            ResultDetailListExpandCommandClick(null);
+
+            return true;
+        }
+
+        /// <summary>
+        /// Peform the check between the local layer and remote table.
+        /// </summary>
+        /// <param name="uploadLayer"></param>
+        /// <returns>bool</returns>
+        private async Task<bool> PerformCheckAsync(bool uploadLayer)
+        {
             // Reset the result summary and detail lists.
             ResultSummaryList = [];
             ResultDetailList = [];
@@ -982,8 +1064,11 @@ namespace DataSync.UI
                 // Get the position of the local layer in the map.
                 int localIndex = _mapFunctions.FindLayerIndex(_localLayer) + 1;
 
+                // Set the full remote table path.
+                string remoteLayerPath = _sdeFileName + @"\" + _defaultSchema + "." + _remoteLayer;
+
                 // Add the remote table to the map below the local table.
-                if (!await _mapFunctions.AddLayerToMapAsync(remoteTablePath, localIndex, _remoteLayer))
+                if (!await _mapFunctions.AddLayerToMapAsync(remoteLayerPath, localIndex, _remoteLayer))
                 {
                     ShowMessage("Error: Adding remote layer to map", MessageType.Warning);
                     //FileFunctions.WriteLine(_logFile, "Error: Adding remote layer to map.");
@@ -1028,6 +1113,19 @@ namespace DataSync.UI
             string oldAreaColumn = "AreaOld";
             _resultDetail = await _sqlFunctions.GetSyncResultsAsync(resultsTable, typeColumn, orderColumn, descColumn, newRefColumn, oldRefColumn, newAreaColumn, oldAreaColumn);
 
+            // If there are no results then the tables are identical.
+            if (_resultDetail == null || _resultDetail.Count == 0)
+            {
+                // Set identical flag.
+                _tablesIdentical = true;
+
+                ShowMessage("Local layer and remote table are identical", MessageType.Information);
+                return true;
+            }
+
+            // Set identical flag.
+            _tablesIdentical = false;
+
             // Get a summary of the results.
             _resultSummary = (from r in _resultDetail
                               group r by new { r.Type, r.Desc }
@@ -1041,18 +1139,6 @@ namespace DataSync.UI
 
             // Set the list of result summary.
             ResultSummaryList = new ObservableCollection<ResultSummary>(_resultSummary);
-
-            // Set the check has run flag.
-            _checkHasRun = true;
-
-            _dockPane.ProgressUpdate(null, -1, -1);
-
-            // Update the fields and buttons in the form.
-            UpdateFormControls();
-            _dockPane.RefreshPanel1Buttons();
-
-            // Force result detail list height to reset.
-            ResultDetailListExpandCommandClick(null);
 
             return true;
         }
@@ -1157,11 +1243,11 @@ namespace DataSync.UI
 
             FileFunctions.WriteLine(_logFile, "Updates to remote table complete.");
 
-            // Reload the details of the local and remote tables.
-            await LoadTableDetailsAsync(true, true);
+            // Reload the local and remote table counts.
+            await LoadTableCountsAsync(true, true);
 
             //// Re-run the check to show if anything is still outstanding.
-            //await CheckChangesAsync(false);
+            //await CompareChangesAsync(false);
 
             FileFunctions.WriteLine(_logFile, string.Format("{0:n0} features now in remote table.", _remoteFeatures));
 
@@ -1247,7 +1333,7 @@ namespace DataSync.UI
             long tableCount = -1;
 
             // Get the name of the stored procedure to execute selection in SQL Server.
-            string storedProcedureName = _checkStoredProcedure;
+            string storedProcedureName = _compareStoredProcedure;
 
             // Set up the SQL command.
             StringBuilder sqlCmd = new();
@@ -1448,6 +1534,39 @@ namespace DataSync.UI
 
         #endregion Methods
 
+        #region Tables Counts List
+
+        private ICommand _refreshTableCountsCommand;
+
+        /// <summary>
+        /// Create the RefreshTableCountsList button command.
+        /// </summary>
+        public ICommand RefreshTableCountsCommand
+        {
+            get
+            {
+                if (_refreshTableCountsCommand == null)
+                {
+                    Action<object> refreshAction = new(RefreshTableCountsListCommandClick);
+                    _refreshTableCountsCommand = new RelayCommand(refreshAction, param => TableCountsListEnabled);
+                }
+                return _refreshTableCountsCommand;
+            }
+        }
+
+        /// <summary>
+        /// Handles the event when the refresh table counts list button is clicked.
+        /// </summary>
+        /// <param name="param"></param>
+        /// <remarks></remarks>
+        private async void RefreshTableCountsListCommandClick(object param)
+        {
+            // Reload the local and remote table counts.
+            await LoadTableCountsAsync(true, false);
+        }
+
+        #endregion Tables Counts List
+
         #region ResultDetailListExpand Command
 
         private ICommand _resultDetailListExpandCommand;
@@ -1635,12 +1754,12 @@ namespace DataSync.UI
         #endregion INotifyPropertyChanged Members
     }
 
-    #region TableSummary Class
+    #region TableCount Class
 
     /// <summary>
-    /// TableSummary to display.
+    /// TableCount to display.
     /// </summary>
-    public class TableSummary : INotifyPropertyChanged
+    public class TableCount : INotifyPropertyChanged
     {
         #region Fields
 
@@ -1671,7 +1790,7 @@ namespace DataSync.UI
 
         #region Creator
 
-        public TableSummary()
+        public TableCount()
         {
             // constructor takes no arguments.
         }
@@ -1704,7 +1823,7 @@ namespace DataSync.UI
         #endregion INotifyPropertyChanged Members
     }
 
-    #endregion TableSummary Class
+    #endregion TableCount Class
 
     #region ResultSummary Class
 

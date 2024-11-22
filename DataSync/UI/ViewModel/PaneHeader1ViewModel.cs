@@ -221,7 +221,8 @@ namespace DataSync.UI
         {
             get
             {
-                return ((!_dockPane.SyncRunning)
+                return ((!_dockPane.CompareRunning)
+                    && (!_dockPane.SyncRunning)
                     && (!_dockPane.FormLoading));
             }
         }
@@ -342,6 +343,7 @@ namespace DataSync.UI
             get
             {
                 return ((!string.IsNullOrEmpty(SelectedXMLProfile))
+                    && (!_dockPane.CompareRunning)
                     && (!_dockPane.SyncRunning)
                     && (!_dockPane.FormLoading));
             }
