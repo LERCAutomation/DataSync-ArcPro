@@ -608,7 +608,7 @@ namespace DataSync.UI
             get
             {
                 if ((_resultDetailList == null) || (_resultDetailList.Count < 19))
-                    return 340;
+                    return 330;
                 else
                     return _resultDetailListHeight;
             }
@@ -1598,7 +1598,7 @@ namespace DataSync.UI
         private void ResultDetailListExpandCommandClick(object param)
         {
             if (_resultDetailListHeight == null)
-                _resultDetailListHeight = 340;
+                _resultDetailListHeight = 330;
             else
                 _resultDetailListHeight = null;
 
