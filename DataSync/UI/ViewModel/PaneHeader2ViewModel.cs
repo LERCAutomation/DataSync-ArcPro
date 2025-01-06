@@ -68,9 +68,8 @@ namespace DataSync.UI
 
         // Table fields.
         private string _localLayer;
-        private string _localClause;
-        private string _remoteTable;
-        private string _remoteClause;
+        private string _remoteTableUp;
+        private string _remoteTableDown;
         private string _remoteLayer;
         private string _keyColumn;
         private string _spatialColumn;
@@ -145,9 +144,8 @@ namespace DataSync.UI
             _updateStoredProcedure = _toolConfig.UpdateStoredProcedure;
             _clearStoredProcedure = _toolConfig.ClearStoredProcedure;
             _localLayer = _toolConfig.LocalLayer;
-            _localClause = _toolConfig.LocalClause;
-            _remoteTable = _toolConfig.RemoteTable;
-            _remoteClause = _toolConfig.RemoteClause;
+            _remoteTableUp = _toolConfig.RemoteTableUp;
+            _remoteTableDown = _toolConfig.RemoteTableDown;
             _remoteLayer = _toolConfig.RemoteLayer;
             _keyColumn = _toolConfig.KeyColumn;
             _spatialColumn = _toolConfig.SpatialColumn;
@@ -598,17 +596,17 @@ namespace DataSync.UI
             }
         }
 
-        private double? _resultDetailListHeight = null;
+        private double _resultDetailListHeight = Double.NaN;
 
         /// <summary>
         /// Get the height of the result details list.
         /// </summary>
-        public double? ResultDetailListHeight
+        public double ResultDetailListHeight
         {
             get
             {
-                if ((_resultDetailList == null) || (_resultDetailList.Count < 19))
-                    return 330;
+                if ((_resultDetailList == null) || (_resultDetailList.Count < 15))
+                    return 310;
                 else
                     return _resultDetailListHeight;
             }
@@ -621,7 +619,7 @@ namespace DataSync.UI
         {
             get
             {
-                if (_resultDetailListHeight == null)
+                if (!Double.IsFinite(_resultDetailListHeight))
                     return "-";
                 else
                     return "+";
@@ -792,7 +790,7 @@ namespace DataSync.UI
             _dockPane.RefreshPanel1Buttons();
 
             // Show any message from loading the local layer details.
-            if (localDetailsTask.Result != null!)
+            if (localDetailsTask.Result != null)
             {
                 ShowMessage(localDetailsTask.Result, MessageType.Warning);
                 if (message)
@@ -801,7 +799,7 @@ namespace DataSync.UI
             }
 
             // Show any message from loading the remote table details.
-            if (remoteDetailsTask.Result != null!)
+            if (remoteDetailsTask.Result != null)
             {
                 ShowMessage(remoteDetailsTask.Result, MessageType.Warning);
                 if (message)
@@ -851,7 +849,7 @@ namespace DataSync.UI
             else if (_remoteFeatures < 0)
                 ShowMessage("Error counting remote features", MessageType.Warning);
             else if ((_localBlankKeys > 0) || (_localDuplicates > 0) || (_remoteBlankKeys > 0) || (_remoteDuplicates > 0))
-                ShowMessage(string.Format("One or more features with null, blank or duplicate keys"), MessageType.Warning);
+                ShowMessage(string.Format("Feature(s) with null, blank or duplicate keys"), MessageType.Warning);
         }
 
         /// <summary>
@@ -894,11 +892,10 @@ namespace DataSync.UI
                 return string.Format("Spatial column '{0}' not found in local layer '{1}'", _keyColumn, _localLayer);
 
             // Count the number of features in the layer.
-            string whereClause = _localClause;
-            _localFeatures = await ArcGISFunctions.GetFeaturesCountAsync(LocalFeatureLayer, whereClause);
+            _localFeatures = await ArcGISFunctions.GetFeaturesCountAsync(LocalFeatureLayer);
 
             // Count the number of features with null/blank keys.
-            whereClause = "(" + _keyColumn + " IS NULL OR " + _keyColumn + " = '')";
+            string whereClause = "(" + _keyColumn + " IS NULL OR " + _keyColumn + " = '')";
             _localBlankKeys = await ArcGISFunctions.GetFeaturesCountAsync(LocalFeatureLayer, whereClause);
 
             // Count the number of features with duplicate keys.
@@ -926,28 +923,27 @@ namespace DataSync.UI
                 return null;
 
             // Check if the feature class exists.
-            if (!await _sqlFunctions.FCExistsAsync(_remoteTable))
-                return "Remote table '" + _remoteTable + "' not found.";
+            if (!await _sqlFunctions.FCExistsAsync(_remoteTableDown))
+                return "Remote table '" + _remoteTableDown + "' not found.";
 
             // Check the spatial column is in the table.
-            if (!await _sqlFunctions.FieldExistsAsync(_remoteTable, _spatialColumn))
-                return string.Format("Key column '{0}' not found in remote table '{1}'", _keyColumn, _remoteTable);
+            if (!await _sqlFunctions.FieldExistsAsync(_remoteTableDown, _spatialColumn))
+                return string.Format("Key column '{0}' not found in remote table '{1}'", _keyColumn, _remoteTableDown);
 
             // Check the key column is in the table.
-            if (!await _sqlFunctions.FieldExistsAsync(_remoteTable, _keyColumn))
-                return string.Format("Spatial column '{0}' not found in remote table '{1}'", _keyColumn, _remoteTable);
+            if (!await _sqlFunctions.FieldExistsAsync(_remoteTableDown, _keyColumn))
+                return string.Format("Spatial column '{0}' not found in remote table '{1}'", _keyColumn, _remoteTableDown);
 
             // Count the number of features in the remote table.
-            string whereClause = _remoteClause;
-            _remoteFeatures = await _sqlFunctions.GetFeaturesCountAsync(_remoteTable, whereClause);
+            _remoteFeatures = await _sqlFunctions.GetFeaturesCountAsync(_remoteTableDown);
 
             // Count the number of features with null/blank keys.
-            whereClause = "((" + _remoteClause + ") AND (" + _keyColumn + " IS NULL OR " + _keyColumn + " = ''))";
-            _remoteBlankKeys = await _sqlFunctions.GetFeaturesCountAsync(_remoteTable, whereClause);
+            string whereClause = "(" + _keyColumn + " IS NULL OR " + _keyColumn + " = '')";
+            _remoteBlankKeys = await _sqlFunctions.GetFeaturesCountAsync(_remoteTableDown, whereClause);
 
             // Count the number of features with duplicate keys.
-            whereClause = "((" + _remoteClause + ") AND (" + _keyColumn + " IS NOT NULL AND " + _keyColumn + " <> ''))";
-            _remoteDuplicates = await _sqlFunctions.GetDuplicateFeaturesCountAsync(_remoteTable, _keyColumn, whereClause);
+            whereClause = "(" + _keyColumn + " IS NOT NULL AND " + _keyColumn + " <> '')";
+            _remoteDuplicates = await _sqlFunctions.GetDuplicateFeaturesCountAsync(_remoteTableDown, _keyColumn, whereClause);
 
             // Set flag to show the table has loaded.
             _remoteTableLoaded = true;
@@ -992,7 +988,7 @@ namespace DataSync.UI
             _dockPane.CompareRunning = true;
 
             // Expand the detail list (ready to be resized later).
-            _resultDetailListHeight = null;
+            _resultDetailListHeight = Double.NaN;
 
             // Update the fields and buttons in the form.
             UpdateFormControls();
@@ -1034,7 +1030,7 @@ namespace DataSync.UI
             await _mapFunctions.ClearLayerSelectionAsync(_localLayer);
 
             // Set the full remote table path.
-            string remoteTablePath = _sdeFileName + @"\" + _defaultSchema + "." + _remoteTable;
+            string remoteTablePath = _sdeFileName + @"\" + _defaultSchema + "." + _remoteTableUp;
 
             if (uploadLayer)
             {
@@ -1065,7 +1061,7 @@ namespace DataSync.UI
                 int localIndex = _mapFunctions.FindLayerIndex(_localLayer) + 1;
 
                 // Set the full remote table path.
-                string remoteLayerPath = _sdeFileName + @"\" + _defaultSchema + "." + _remoteLayer;
+                string remoteLayerPath = _sdeFileName + @"\" + _defaultSchema + "." + _remoteTableDown;
 
                 // Add the remote table to the map below the local table.
                 if (!await _mapFunctions.AddLayerToMapAsync(remoteLayerPath, localIndex, _remoteLayer))
@@ -1081,14 +1077,14 @@ namespace DataSync.UI
 
             //FileFunctions.WriteLine(_logFile, "Comparing local layer and remote table ...");
 
-            string resultsTable = _remoteTable + "_SYNC";
+            string resultsTable = _remoteTableUp + "_SYNC";
 
             // Delete the results table before we start.
             if (await _sqlFunctions.TableExistsAsync(resultsTable))
                 await _sqlFunctions.DeleteTableAsync(resultsTable);
 
             // Execute the stored procedure to check the local layer and remote table.
-            long resultsCount = await PerformSQLCheckAsync(_defaultSchema, _remoteTable, _keyColumn, _spatialColumn, resultsTable);
+            long resultsCount = await PerformSQLCheckAsync(_defaultSchema, _remoteTableUp, _keyColumn, _spatialColumn, resultsTable);
 
             // Check the results table has been created.
             if (resultsCount < 0)
@@ -1107,11 +1103,11 @@ namespace DataSync.UI
             string typeColumn = "Type";
             string orderColumn = "Order";
             string descColumn = "Desc";
-            string newRefColumn = "Ref";
-            string oldRefColumn = "RefOld";
-            string newAreaColumn = "Area";
+            string newKeyColumn = "KeyNew";
+            string oldKeyColumn = "KeyOld";
+            string newAreaColumn = "AreaNew";
             string oldAreaColumn = "AreaOld";
-            _resultDetail = await _sqlFunctions.GetSyncResultsAsync(resultsTable, typeColumn, orderColumn, descColumn, newRefColumn, oldRefColumn, newAreaColumn, oldAreaColumn);
+            _resultDetail = await _sqlFunctions.GetSyncResultsAsync(resultsTable, typeColumn, orderColumn, descColumn, newKeyColumn, oldKeyColumn, newAreaColumn, oldAreaColumn);
 
             // If there are no results then the tables are identical.
             if (_resultDetail == null || _resultDetail.Count == 0)
@@ -1226,7 +1222,7 @@ namespace DataSync.UI
             }
 
             // Execute the stored procedure to update the remote table.
-            if (!await PerformSQLUpdateAsync(_defaultSchema, _remoteTable))
+            if (!await PerformSQLUpdateAsync(_defaultSchema, _remoteTableUp))
             {
                 FileFunctions.WriteLine(_logFile, "Error: Applying updates to remote table.");
                 _syncErrors = true;
@@ -1234,7 +1230,7 @@ namespace DataSync.UI
             }
 
             // Check the updated remote feature class exists.
-            if (!await _sqlFunctions.FCExistsAsync(_remoteTable))
+            if (!await _sqlFunctions.FCExistsAsync(_remoteTableUp))
             {
                 FileFunctions.WriteLine(_logFile, "Error: Updated remote table is not found.");
                 _syncErrors = true;
@@ -1308,7 +1304,7 @@ namespace DataSync.UI
             await _mapFunctions.ClearLayerSelectionAsync(_localLayer);
 
             // Clear the temporary remote tables.
-            await ClearSQLTableAsync(_defaultSchema, _remoteTable);
+            await ClearSQLTableAsync(_defaultSchema, _remoteTableUp);
 
             //// Remove the remote layer (if added).
             //if (_remoteLayerAdded)
@@ -1373,7 +1369,7 @@ namespace DataSync.UI
             if (!success)
                 return -1;
 
-            //FileFunctions.WriteLine(_logFile, "SQL spatial selection complete.");
+            //FileFunctions.WriteLine(_logFile, "SQL comparison complete.");
 
             return tableCount;
         }
@@ -1476,7 +1472,7 @@ namespace DataSync.UI
             else
                 searchClause = _keyColumn + " = '" + keyValue + "'";
 
-            // Select the feature matching the key ref in the map (don't wait).
+            // Select the feature matching the key in the map (don't wait).
             if (!await _mapFunctions.SelectLayerByAttributesAsync(layerName, searchClause, SelectionCombinationMethod.New))
             {
                 ShowMessage("Error funding feature in layer '" + layerName + "'", MessageType.Warning);
@@ -1597,10 +1593,10 @@ namespace DataSync.UI
         /// <remarks></remarks>
         private void ResultDetailListExpandCommandClick(object param)
         {
-            if (_resultDetailListHeight == null)
-                _resultDetailListHeight = 330;
+            if (!Double.IsFinite(_resultDetailListHeight))
+                _resultDetailListHeight = 310;
             else
-                _resultDetailListHeight = null;
+                _resultDetailListHeight = Double.NaN;
 
             OnPropertyChanged(nameof(ResultDetailListHeight));
             OnPropertyChanged(nameof(ResultDetailListExpandButtonContent));
@@ -1677,18 +1673,18 @@ namespace DataSync.UI
             else if (resultType == "Deleted")
             {
                 // Get the key of the selected result.
-                string oldRef = resultDetail.OldRef?.Trim();
+                string oldKey = resultDetail.OldKey?.Trim();
 
                 // Zoom to the selected result.
-                await ZoomToFeatureAsync(_remoteLayer, oldRef);
+                await ZoomToFeatureAsync(_remoteLayer, oldKey);
             }
             else
             {
                 // Get the key of the selected result.
-                string newRef = resultDetail.NewRef?.Trim();
+                string newKey = resultDetail.NewKey?.Trim();
 
                 // Zoom to the selected result.
-                await ZoomToFeatureAsync(_localLayer, newRef);
+                await ZoomToFeatureAsync(_localLayer, newKey);
             }
         }
 
@@ -1918,9 +1914,9 @@ namespace DataSync.UI
 
         public string Desc { get; set; }
 
-        public string NewRef { get; set; }
+        public string NewKey { get; set; }
 
-        public string OldRef { get; set; }
+        public string OldKey { get; set; }
 
         public string NewArea { get; set; }
 
@@ -1953,11 +1949,11 @@ namespace DataSync.UI
             Type = type;
         }
 
-        public ResultDetail(string type, string newRef, string oldRef, float newArea, float oldArea)
+        public ResultDetail(string type, string newKey, string oldKey, float newArea, float oldArea)
         {
             Type = type;
-            NewRef = newRef;
-            OldRef = oldRef;
+            NewKey = newKey;
+            OldKey = oldKey;
             NewArea = newArea.ToString();
             OldArea = oldArea.ToString();
         }

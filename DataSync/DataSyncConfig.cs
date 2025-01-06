@@ -182,34 +182,24 @@ namespace DataSync
                 throw new("Could not locate item 'LocalLayer' in the XML profile.");
             }
 
-            // The local layer selection where clause (if required).
+            // The name of the remote table in SQL Server containing the remote features to upload to.
             try
             {
-                _localClause = _xmlDataSync["LocalClause"].InnerText;
+                _remoteTableUp = _xmlDataSync["RemoteTableUp"].InnerText;
             }
             catch
             {
-                throw new("Could not locate item 'LocalClause' in the XML profile.");
+                throw new("Could not locate item 'RemoteTableUp' in the XML profile.");
             }
 
-            // The name of the remote table in SQL Server containing the remote features.
+            // The name of the remote table in SQL Server containing the remote features to download from.
             try
             {
-                _remoteTable = _xmlDataSync["RemoteTable"].InnerText;
+                _remoteTableDown = _xmlDataSync["RemoteTableDown"].InnerText;
             }
             catch
             {
-                throw new("Could not locate item 'RemoteTable' in the XML profile.");
-            }
-
-            // The remote table selection where clause (if required).
-            try
-            {
-                _remoteClause = _xmlDataSync["RemoteClause"].InnerText;
-            }
-            catch
-            {
-                throw new("Could not locate item 'RemoteClause' in the XML profile.");
+                throw new("Could not locate item 'RemoteTableDown' in the XML profile.");
             }
 
             // The name of the layer in GIS displaying the remote features from SQL Server.
@@ -357,25 +347,18 @@ namespace DataSync
             get { return _localLayer; }
         }
 
-        private string _localClause;
+        private string _remoteTableUp;
 
-        public string LocalClause
+        public string RemoteTableUp
         {
-            get { return _localClause; }
+            get { return _remoteTableUp; }
         }
 
-        private string _remoteTable;
+        private string _remoteTableDown;
 
-        public string RemoteTable
+        public string RemoteTableDown
         {
-            get { return _remoteTable; }
-        }
-
-        private string _remoteClause;
-
-        public string RemoteClause
-        {
-            get { return _remoteClause; }
+            get { return _remoteTableDown; }
         }
 
         private string _remoteLayer;

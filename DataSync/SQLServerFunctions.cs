@@ -402,13 +402,13 @@ namespace DataTools
         /// <param name="typeColumn"></param>
         /// <param name="orderColumn"></param>
         /// <param name="descColumn"></param>
-        /// <param name="newRefColumn"></param>
+        /// <param name="newKeyColumn"></param>
         /// <param name="newAreaColumn"></param>
-        /// <param name="oldRefColumn"></param>
+        /// <param name="oldKeyColumn"></param>
         /// <param name="oldAreaColumn"></param>
         /// <returns>List<ResultDetail></returns>
         public async Task<List<ResultDetail>> GetSyncResultsAsync(string resultsTable, string typeColumn, string orderColumn,
-            string descColumn, string newRefColumn, string oldRefColumn, string newAreaColumn, string oldAreaColumn)
+            string descColumn, string newKeyColumn, string oldKeyColumn, string newAreaColumn, string oldAreaColumn)
         {
             // Check there is an input remote table name.
             if (String.IsNullOrEmpty(resultsTable))
@@ -453,8 +453,8 @@ namespace DataTools
                             Type = Convert.ToString(row[typeColumn]),
                             Order = Convert.ToInt16(row[orderColumn]),
                             Desc = Convert.ToString(row[descColumn]),
-                            NewRef = Convert.ToString(row[newRefColumn]),
-                            OldRef = Convert.ToString(row[oldRefColumn]),
+                            NewKey = Convert.ToString(row[newKeyColumn]),
+                            OldKey = Convert.ToString(row[oldKeyColumn]),
                             NewArea = Convert.ToString(row[newAreaColumn]) == "0" ? "" : Convert.ToString(row[newAreaColumn]),
                             OldArea = Convert.ToString(row[oldAreaColumn]) == "0" ? "" : Convert.ToString(row[oldAreaColumn])
                         };

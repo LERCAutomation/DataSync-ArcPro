@@ -25,4 +25,27 @@ namespace DataTools
 
         #endregion
     }
+
+    internal class AreaToStringConverter : IValueConverter
+    {
+        #region IValueConverter Members
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            string count;
+            if (double.TryParse(value.ToString(), out double area))
+                count = string.Format("{0:0.00}", area);
+            else
+                count = value.ToString();
+
+            return count;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return value;
+        }
+
+        #endregion
+    }
 }

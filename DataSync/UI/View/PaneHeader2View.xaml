@@ -12,6 +12,7 @@
 
     <UserControl.Resources>
         <converter:CountToStringConverter x:Key="CountToStringConverter" />
+        <converter:AreaToStringConverter x:Key="AreaToStringConverter" />
     </UserControl.Resources>
 
     <DockPanel MinWidth="270"
@@ -48,7 +49,7 @@
                           Grid.Row="1"
                           Grid.Column="0"
                           Margin="0,0,4,0"
-                          ItemsSource="{Binding TableCountsList}"
+                          ItemsSource="{Binding Path=TableCountsList}"
                           SelectionMode="Single">
 
                     <ListView.View>
@@ -58,31 +59,31 @@
                                     <Setter Property="Visibility" Value="Visible" />
                                 </Style>
                             </GridView.ColumnHeaderContainerStyle>
-                            <GridViewColumn Header="Table" Width="70">
+                            <GridViewColumn Header="Table" Width="60">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Left" Text="{Binding Table}" />
+                                        <TextBlock HorizontalAlignment="Left" Text="{Binding Path=Table}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="Count" Width="70">
+                            <GridViewColumn Header="Count" Width="60">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Count, Converter={StaticResource CountToStringConverter}}" />
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Path=Count, Converter={StaticResource CountToStringConverter}}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="Errors" Width="70">
+                            <GridViewColumn Header="Errors" Width="60">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Errors, Converter={StaticResource CountToStringConverter}}" />
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Path=Errors, Converter={StaticResource CountToStringConverter}}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="Duplicates" Width="70">
+                            <GridViewColumn Header="Duplicates" Width="60">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Duplicates, Converter={StaticResource CountToStringConverter}}" />
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Path=Duplicates, Converter={StaticResource CountToStringConverter}}" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
@@ -91,9 +92,9 @@
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
                             <Setter Property="Focusable" Value="False" />
-                            <Setter Property="ToolTip" Value="{Binding ToolTip}" />
+                            <Setter Property="ToolTip" Value="{Binding Path=ToolTip}" />
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            <Setter Property="IsSelected" Value="{Binding IsSelected}" />
+                            <Setter Property="IsSelected" Value="{Binding Path=IsSelected}" />
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="true">
                                     <Setter Property="Background" Value="LightSkyBlue" />
@@ -124,10 +125,10 @@
                         FontWeight="Normal"
                         VerticalAlignment="Center"
                         IsEnabled="{Binding Path=TableCountsListEnabled}"
-                        Command="{Binding RefreshTableCountsCommand}"
+                        Command="{Binding Path=RefreshTableCountsCommand}"
                         ToolTip="Refresh table counts"
                         Style="{DynamicResource Esri_SimpleButton}">
-                    <Image Source="{Binding ButtonTableCountsListRefreshImg}" Width="16" Height="16" />
+                    <Image Source="{Binding Path=ButtonTableCountsListRefreshImg}" Width="16" Height="16" />
                 </Button>
             </Grid>
 
@@ -157,10 +158,10 @@
                         ToolTip="Compare local layer and remote table" />
             </Grid>
 
-            <Grid Name="GridResultSummary" Grid.Row="2" Margin="0,4,0,4" Visibility="{Binding ResultVisibility}">
+            <Grid Name="GridResultSummary" Grid.Row="2" Margin="0,4,0,4" Visibility="{Binding Path=ResultVisibility}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="182" />
+                    <RowDefinition Height="180" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -173,64 +174,120 @@
                        Margin="0,0,0,2"
                        Padding="0"
                        VerticalAlignment="Center" />
-                <ListView Name="ListViewResultSummary"
+                <DataGrid Name="ListViewResultSummary"
                           Grid.Row="1"
                           Grid.Column="0"
-                          ItemsSource="{Binding ResultSummaryList}"
+                          GridLinesVisibility="None"
+                          ItemsSource="{Binding Path=ResultSummaryList}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          CanUserReorderColumns="False"
+                          CanUserResizeColumns="False"
+                          CanUserSortColumns="False"
+                          RowHeaderWidth="0"
                           SelectionChanged="ListViewResultSummary_SelectionChanged"
-                          SelectedIndex="{Binding ResultSummaryListSelectedIndex}"
+                          SelectedIndex="{Binding Path=ResultSummaryListSelectedIndex, Mode=OneWayToSource}"
                           SelectionMode="Single">
 
-                    <ListView.View>
-                        <GridView AllowsColumnReorder="False">
-                            <GridView.ColumnHeaderContainerStyle>
-                                <Style TargetType="GridViewColumnHeader">
-                                    <Setter Property="Visibility" Value="Visible" />
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Binding="{Binding Path=Type}"
+                                                    Header="Type"
+                                                    IsReadOnly="True"
+                                                    Visibility="Visible">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="HorizontalAlignment" Value="Left" />
+                                    <Setter Property="Margin" Value="6,0,4,0" />
                                 </Style>
-                            </GridView.ColumnHeaderContainerStyle>
-                            <GridViewColumn Header="Type" Width="64">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Left" Text="{Binding Type}" />
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                            <GridViewColumn Header="Count" Width="60">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Right" Text="{Binding Count, Converter={StaticResource CountToStringConverter}}" />
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                            <GridViewColumn Header="Description" Width="226">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Left" Text="{Binding Desc}" />
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                        </GridView>
-                    </ListView.View>
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem">
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Binding="{Binding Path=Count, Converter={StaticResource CountToStringConverter}}"
+                                                    Header="Count"
+                                                    IsReadOnly="True"
+                                                    Visibility="Visible">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="HorizontalAlignment" Value="Right" />
+                                    <Setter Property="Margin" Value="0,0,4,0" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Binding="{Binding Path=Desc}"
+                                                    Header="Description"
+                                                    IsReadOnly="True"
+                                                    Visibility="Visible">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="HorizontalAlignment" Value="Left" />
+                                    <Setter Property="Margin" Value="6,0,0,0" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
                             <Setter Property="ToolTip" Value="Select to view result details" />
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            <Setter Property="IsSelected" Value="{Binding IsSelected}" />
+                            <Setter Property="IsSelected" Value="{Binding Path=IsSelected}" />
+                            <Setter Property="Height" Value="19"/>
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="true">
                                     <Setter Property="Background" Value="LightSkyBlue" />
                                     <Setter Property="BorderBrush" Value="DodgerBlue" />
                                     <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="BorderThickness" Value="0" />
                                 </Trigger>
                                 <Trigger Property="IsSelected" Value="True">
-                                    <Setter Property="Background" Value="DodgerBlue" />
-                                    <Setter Property="BorderBrush" Value="DodgerBlue" />
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                <GradientStop Offset="0" Color="#66b3ff"/>
+                                                <GradientStop Offset="0.5" Color="#66b3ff"/>
+                                                <GradientStop Offset="0.50000001" Color="#1E90FF"/>
+                                                <GradientStop Offset="1" Color="#1E90FF"/>
+                                            </LinearGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Setter Property="BorderBrush" Value="LightSkyBlue" />
                                     <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="False">
+                                    <Setter Property="BorderBrush" Value="White" />
+                                    <Setter Property="Foreground" Value="Black" />
+                                    <Setter Property="BorderThickness" Value="0" />
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
-                    </ListView.ItemContainerStyle>
-                </ListView>
+                    </DataGrid.RowStyle>
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                <GradientStop Offset="0" Color="#66b3ff"/>
+                                                <GradientStop Offset="0.5" Color="#66b3ff"/>
+                                                <GradientStop Offset="0.50000001" Color="#1E90FF"/>
+                                                <GradientStop Offset="1" Color="#1E90FF"/>
+                                            </LinearGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Setter Property="BorderBrush" Value="White" />
+                                    <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="False">
+                                    <Setter Property="BorderBrush" Value="White" />
+                                    <Setter Property="Foreground" Value="Black" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.CellStyle>
+                </DataGrid>
                 <!-- <Button Name="ButtonLoadResults"
                     Grid.Row="1"
                     Grid.Column="0"
@@ -242,10 +299,10 @@
                 </Button> -->
             </Grid>
 
-            <Grid Name="GridResultDetail" Grid.Row="3" Margin="0,4,0,4" Visibility="{Binding ResultVisibility}">
+            <Grid Name="GridResultDetail" Grid.Row="3" Margin="0,4,0,4" Visibility="{Binding Path=ResultVisibility}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="{Binding ResultDetailListHeight}" />
+                    <RowDefinition Height="{Binding Path=ResultDetailListHeight}" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -258,79 +315,144 @@
                        Margin="0,0,0,2"
                        Padding="0"
                        VerticalAlignment="Center" />
-                <ListView Name="ListViewResultDetail"
+                <DataGrid Name="ListViewResultDetail"
                           Grid.Row="1"
                           Grid.Column="0"
-                          ItemsSource="{Binding ResultDetailList}"
+                          GridLinesVisibility="None"
+                          ItemsSource="{Binding Path=ResultDetailList}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          CanUserReorderColumns="False"
+                          CanUserResizeColumns="False"
+                          CanUserSortColumns="False"
+                          RowHeaderWidth="0"
                           MouseDoubleClick="ListViewResultDetail_MouseDoubleClick"
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
                           SelectionChanged="ListViewResultDetail_SelectionChanged"
-                          SelectedIndex="{Binding ResultDetailListSelectedIndex}"
+                          SelectedIndex="{Binding Path=ResultDetailListSelectedIndex, Mode=OneWayToSource}"
                           SelectionMode="Single">
-                    <ListView.View>
-                        <GridView AllowsColumnReorder="False">
-                            <GridView.ColumnHeaderContainerStyle>
-                                <Style TargetType="GridViewColumnHeader">
-                                    <Setter Property="Visibility" Value="Visible" />
+
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Binding="{Binding Path=Type}"
+                                                    Header="Type"
+                                                    IsReadOnly="True"
+                                                    Visibility="Visible">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="HorizontalAlignment" Value="Left" />
+                                    <Setter Property="Margin" Value="6,0,4,0" />
                                 </Style>
-                            </GridView.ColumnHeaderContainerStyle>
-                            <GridViewColumn Header="Type" Width="64">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Stretch" Text="{Binding Type}" />
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                            <GridViewColumn Header="Ref" Width="80">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Stretch" Text="{Binding NewRef}" />
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                            <GridViewColumn Header="Area" Width="63">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Right" Text="{Binding NewArea}" />
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                            <GridViewColumn Header="Old Ref" Width="80">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Stretch" Text="{Binding OldRef}" />
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                            <GridViewColumn Header="Old Area" Width="63">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Right" Text="{Binding OldArea}" />
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                        </GridView>
-                    </ListView.View>
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem">
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Binding="{Binding Path=NewKey}"
+                                                    Header="New Key"
+                                                    IsReadOnly="True"
+                                                    Visibility="Visible">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="HorizontalAlignment" Value="Left" />
+                                    <Setter Property="Margin" Value="6,0,4,0" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Binding="{Binding Path=NewArea, Converter={StaticResource AreaToStringConverter}}"
+                                                    Header="New Area"
+                                                    IsReadOnly="True"
+                                                    Visibility="Visible">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="HorizontalAlignment" Value="Right" />
+                                    <Setter Property="Margin" Value="6,0,4,0" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Binding="{Binding Path=OldKey}"
+                                                    Header="Old Key"
+                                                    IsReadOnly="True"
+                                                    Visibility="Visible">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="HorizontalAlignment" Value="Left" />
+                                    <Setter Property="Margin" Value="6,0,4,0" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Binding="{Binding Path=OldArea, Converter={StaticResource AreaToStringConverter}}"
+                                                    Header="Old Area"
+                                                    IsReadOnly="True"
+                                                    Visibility="Visible">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="HorizontalAlignment" Value="Right" />
+                                    <Setter Property="Margin" Value="6,0,4,0" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
                             <Setter Property="ToolTip" Value="Double-click to zoom to feature" />
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            <Setter Property="IsSelected" Value="{Binding IsSelected}" />
+                            <Setter Property="IsSelected" Value="{Binding Path=IsSelected}" />
+                            <Setter Property="Height" Value="19"/>
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="true">
                                     <Setter Property="Background" Value="LightSkyBlue" />
                                     <Setter Property="BorderBrush" Value="DodgerBlue" />
                                     <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="BorderThickness" Value="0" />
                                 </Trigger>
                                 <Trigger Property="IsSelected" Value="True">
-                                    <Setter Property="Background" Value="DodgerBlue" />
-                                    <Setter Property="BorderBrush" Value="DodgerBlue" />
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                <GradientStop Offset="0" Color="#66b3ff"/>
+                                                <GradientStop Offset="0.5" Color="#66b3ff"/>
+                                                <GradientStop Offset="0.50000001" Color="#1E90FF"/>
+                                                <GradientStop Offset="1" Color="#1E90FF"/>
+                                            </LinearGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Setter Property="BorderBrush" Value="LightSkyBlue" />
                                     <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="False">
+                                    <Setter Property="BorderBrush" Value="White" />
+                                    <Setter Property="Foreground" Value="Black" />
+                                    <Setter Property="BorderThickness" Value="0" />
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
-                    </ListView.ItemContainerStyle>
-                </ListView>
+                    </DataGrid.RowStyle>
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                <GradientStop Offset="0" Color="#66b3ff"/>
+                                                <GradientStop Offset="0.5" Color="#66b3ff"/>
+                                                <GradientStop Offset="0.50000001" Color="#1E90FF"/>
+                                                <GradientStop Offset="1" Color="#1E90FF"/>
+                                            </LinearGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Setter Property="BorderBrush" Value="White" />
+                                    <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="False">
+                                    <Setter Property="BorderBrush" Value="White" />
+                                    <Setter Property="Foreground" Value="Black" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.CellStyle>
+                </DataGrid>
                 <Button Name="ButtonZoomToDetail"
                     Grid.Row="1"
                     Grid.Column="0"
@@ -365,7 +487,7 @@
                         ToolTip="Expand/Collapse the result summary list" />
             </Grid>
 
-            <Grid Name="GridOptions" Grid.Row="4" Margin="0,4,0,4" Visibility="{Binding OptionsVisibility}">
+            <Grid Name="GridOptions" Grid.Row="4" Margin="0,4,0,4" Visibility="{Binding Path=OptionsVisibility}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
@@ -388,7 +510,7 @@
                           HorizontalAlignment="Left"
                           VerticalAlignment="Center"
                           ToolTip="Clear the log file before the process starts?"
-                          IsChecked="{Binding ClearLogFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                          IsChecked="{Binding Path=ClearLogFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 <Label Name="LabelClearLogFile"
                        Content="Clear log file?"
                        Grid.Row="2"
@@ -405,7 +527,7 @@
                           HorizontalAlignment="Left"
                           VerticalAlignment="Center"
                           ToolTip="Open the log file when the process has complete?"
-                          IsChecked="{Binding OpenLogFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                          IsChecked="{Binding Path=OpenLogFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 <Label Name="LabelOpenLogFile"
                        Content="Open log file when run?"
                        Grid.Row="2"
@@ -423,6 +545,7 @@
                 Severity="High"
                 ShowHelp="False"
                 Content="{Binding Path=Message}"
+                ToolTip="{Binding Path=Message}"
                 CanClose="False"
                 Visibility="{Binding Path=HasMessage}" />
         </Grid>

@@ -58,20 +58,15 @@ used by the ArcGIS Pro add-in to select and export GIS data for partners.
 	<value>OpenSpace_Sites</value>
   </LocalLayer>
 
-  <!-- The local layer selection where clause (if required). -->
-  <LocalClause>
-	<value></value>
-  </LocalClause>
-
-  <!-- The name of the remote table in SQL Server containing the remote features. -->
-  <RemoteTable>
+  <!-- The name of the remote table in SQL Server containing the remote features to upload to. -->
+  <RemoteTableUp>
 	<value>OpenSpace_Sites</value>
-  </RemoteTable>
+  </RemoteTableUp>
 
-  <!-- The remote table selection where clause (if required). -->
-  <RemoteClause>
-	<value>Deleted = 0</value>
-  </RemoteClause>
+  <!-- The name of the remote table in SQL Server containing the remote features to download from. -->
+  <RemoteTableDown>
+	<value>Sites_GIS</value>
+  </RemoteTableDown>
 
   <!-- The name of the layer in GIS displaying the remote features from SQL Server. -->
   <RemoteLayer>

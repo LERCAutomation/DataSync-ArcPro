@@ -103,6 +103,7 @@ namespace DataSync.UI
                 OnPropertyChanged(nameof(AvailableXMLFiles));
                 OnPropertyChanged(nameof(SelectedXMLProfile));
                 OnPropertyChanged(nameof(CanSelectXMLPath));
+                OnPropertyChanged(nameof(CanSelectXMLProfile));
                 OnPropertyChanged(nameof(CanLoadProfile));
 
                 return;
@@ -170,6 +171,7 @@ namespace DataSync.UI
             OnPropertyChanged(nameof(AvailableXMLFiles));
             OnPropertyChanged(nameof(SelectedXMLProfile));
             OnPropertyChanged(nameof(CanSelectXMLPath));
+            OnPropertyChanged(nameof(CanSelectXMLProfile));
             OnPropertyChanged(nameof(CanLoadProfile));
 
             // If the XML config file has been set (and it exists) then load it.
@@ -437,6 +439,7 @@ namespace DataSync.UI
                 OnPropertyChanged(nameof(AvailableXMLFiles));
                 OnPropertyChanged(nameof(SelectedXMLProfile));
                 OnPropertyChanged(nameof(CanSelectXMLPath));
+                OnPropertyChanged(nameof(CanSelectXMLProfile));
                 OnPropertyChanged(nameof(CanLoadProfile));
 
                 return;
@@ -495,6 +498,7 @@ namespace DataSync.UI
                 {
                     // Set the list to just the default XML file
                     // and select it.
+                    xmlFilesList = [];
                     xmlFilesList.Add(defaultXML);
                     _availableXMLFiles = xmlFilesList;
                     _selectedXMLProfile = defaultXML;
@@ -513,6 +517,7 @@ namespace DataSync.UI
             OnPropertyChanged(nameof(AvailableXMLFiles));
             OnPropertyChanged(nameof(SelectedXMLProfile));
             OnPropertyChanged(nameof(CanSelectXMLPath));
+            OnPropertyChanged(nameof(CanSelectXMLProfile));
             OnPropertyChanged(nameof(CanLoadProfile));
 
             // If the XML config file has been set (and it exists) then load it.
