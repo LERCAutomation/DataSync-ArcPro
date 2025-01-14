@@ -2,9 +2,9 @@
 // and manage biodiversity information from ArcGIS Pro and SQL Server
 // based on pre-defined or user specified criteria.
 //
-// Copyright © 2024 Andy Foy Consulting.
+// Copyright © 2024-25 Andy Foy Consulting.
 //
-// This file is part of DataTools suite of programs..
+// This file is part of DataTools suite of programs.
 //
 // DataTools are free software: you can redistribute it and/or modify
 // them under the terms of the GNU General Public License as published by
@@ -98,13 +98,11 @@ namespace DataTools
                 catch (GeodatabaseNotFoundOrOpenedException)
                 {
                     // Geodatabase throws an exception.
-                    //MessageBox.Show("Error: Geodatabase not Found or opened (2). " + ex.Message, "Data Selector", MessageBoxButton.OK, MessageBoxImage.Error);
                     _sdeConnectionValid = false;
                 }
                 catch (Exception)
                 {
                     // Unexpected error.
-                    //MessageBox.Show("Error: Unexpected error opening geodatabase (2). " + ex.Message, "Data Selector", MessageBoxButton.OK, MessageBoxImage.Error);
                     _sdeConnectionValid = false;
                 }
             });
@@ -171,11 +169,8 @@ namespace DataTools
                     // Open the table.
                     using Table table = _geodatabase.OpenDataset<Table>(objectsTable);
 
-                    // Create a row cursor.
-                    RowCursor rowCursor;
-
                     // Create a cursor on the table.
-                    rowCursor = table.Search(null);
+                    using RowCursor rowCursor = table.Search(null);
 
                     // Loop through the feature class/table using the cursor.
                     while (rowCursor.MoveNext())
@@ -190,19 +185,17 @@ namespace DataTools
                         _tableNames.Add(tableViewName);
                     }
 
-                    rowCursor.Dispose();
+                    success = true;
                 }
                 catch (GeodatabaseTableException)
                 {
                     // OpenDataset throws an exception if the table doesn't exist.
-                    //MessageBox.Show("Error: Geodatabase table not found (3). " + ex.Message, "Data Selector", MessageBoxButton.OK, MessageBoxImage.Error);
                     success = false;
                     return;
                 }
                 catch (Exception)
                 {
                     // Unexpected error.
-                    //MessageBox.Show("Error: Unexpected error opening geodatabase. " + ex.Message, "Data Selector", MessageBoxButton.OK, MessageBoxImage.Error);
                     success = false;
                     return;
                 }
@@ -704,6 +697,9 @@ namespace DataTools
                         // Write the row string to the output file.
                         txtFile.WriteLine(rowStr);
                     }
+
+                    // Dispose of the row cursor.
+                    rowCursor.Dispose();
                 });
             }
             catch (Exception)
@@ -728,7 +724,7 @@ namespace DataTools
         /// </summary>
         /// <param name="featureClassName"></param>
         /// <returns>bool</returns>
-        public async Task<bool> FCExistsAsync(string featureClassName)
+        public async Task<bool> FeatureClassExistsAsync(string featureClassName)
         {
             // Check there is an input feature class name.
             if (String.IsNullOrEmpty(featureClassName))
@@ -751,9 +747,6 @@ namespace DataTools
                     using FeatureClassDefinition featureClassDefinition = _geodatabase.GetDefinition<FeatureClassDefinition>(featureClassName);
 
                     exists = true;
-
-                    // Dispose of the feature class definition.
-                    featureClassDefinition.Dispose();
                 }
                 catch
                 {
@@ -794,9 +787,6 @@ namespace DataTools
             {
                 try
                 {
-                    // Try and get the feature class definition.
-                    using FeatureClassDefinition featureClassDefinition = _geodatabase.GetDefinition<FeatureClassDefinition>(featureClassName);
-
                     // Open the feature class.
                     using FeatureClass featureClass = _geodatabase.OpenDataset<FeatureClass>(featureClassName);
 
@@ -954,9 +944,6 @@ namespace DataTools
                     using TableDefinition tableDefinition = _geodatabase.GetDefinition<TableDefinition>(tableName);
 
                     exists = true;
-
-                    // Dispose of the table definition.
-                    tableDefinition.Dispose();
                 }
                 catch
                 {
@@ -993,9 +980,6 @@ namespace DataTools
             {
                 try
                 {
-                    // Try and get the table definition.
-                    using TableDefinition tableDefinition = _geodatabase.GetDefinition<TableDefinition>(tableName);
-
                     // Open the table.
                     using Table table = _geodatabase.OpenDataset<Table>(tableName);
 
@@ -1019,11 +1003,11 @@ namespace DataTools
         /// <returns>int</returns>
         public async Task<int> GetTableRowLengthAsync(string tableName)
         {
-            int rowLength = 0;
-
             // Check there is an input table name.
             if (String.IsNullOrEmpty(tableName))
                 return -1;
+
+            int rowLength = 0;
 
             // Open a connection to the geodatabase if not already open.
             if (!GeodatabaseOpen)

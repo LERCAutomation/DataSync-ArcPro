@@ -2,7 +2,7 @@
 // and manage biodiversity information from ArcGIS Pro and SQL Server
 // based on pre-defined or user specified criteria.
 //
-// Copyright © 2024 Andy Foy Consulting.
+// Copyright © 2024-25 Andy Foy Consulting.
 //
 // This file is part of DataTools suite of programs.
 //
@@ -923,7 +923,7 @@ namespace DataSync.UI
                 return null;
 
             // Check if the feature class exists.
-            if (!await _sqlFunctions.FCExistsAsync(_remoteTableDown))
+            if (!await _sqlFunctions.FeatureClassExistsAsync(_remoteTableDown))
                 return "Remote table '" + _remoteTableDown + "' not found.";
 
             // Check the spatial column is in the table.
@@ -1230,7 +1230,7 @@ namespace DataSync.UI
             }
 
             // Check the updated remote feature class exists.
-            if (!await _sqlFunctions.FCExistsAsync(_remoteTableUp))
+            if (!await _sqlFunctions.FeatureClassExistsAsync(_remoteTableUp))
             {
                 FileFunctions.WriteLine(_logFile, "Error: Updated remote table is not found.");
                 _syncErrors = true;

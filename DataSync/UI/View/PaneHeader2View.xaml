@@ -5,7 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:controls="clr-namespace:ArcGIS.Desktop.Framework.Controls;assembly=ArcGIS.Desktop.Framework"
              xmlns:local="clr-namespace:DataSync.UI"
-             xmlns:converter="clr-namespace:DataTools"
+             xmlns:converter="clr-namespace:DataTools.Converters"
              d:DataContext="{d:DesignInstance Type=local:PaneHeader2ViewModel}"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="300">
@@ -581,7 +581,7 @@
                 <CheckBox Name="CheckBoxClearLogFile"
                           Grid.Row="2"
                           Grid.Column="1"
-                          Margin="-12,4,0,0"
+                          Margin="0,4,0,0"
                           Padding="0"
                           HorizontalAlignment="Left"
                           VerticalAlignment="Center"
@@ -594,6 +594,7 @@
                        Grid.Column="2"
                        Margin="0,4,0,0"
                        Padding="0"
+                       ToolTip="Clear the log file before the process starts?"
                        VerticalAlignment="Center" />
 
                 <CheckBox Name="CheckBoxOpenLogFile"
@@ -604,14 +605,15 @@
                           HorizontalAlignment="Left"
                           VerticalAlignment="Center"
                           Style="{DynamicResource Esri_CheckboxToggleSwitch}"
-                          ToolTip="Open the log file when the process has complete?"
+                          ToolTip="Open the log file when the process is complete?"
                           IsChecked="{Binding Path=OpenLogFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 <Label Name="LabelOpenLogFile"
-                       Content="Open log file when run?"
+                       Content="Open log file?"
                        Grid.Row="2"
                        Grid.Column="6"
                        Margin="0,4,0,0"
                        Padding="0"
+                       ToolTip="Open the log file when the process is complete?"
                        VerticalAlignment="Center" />
             </Grid>
 
