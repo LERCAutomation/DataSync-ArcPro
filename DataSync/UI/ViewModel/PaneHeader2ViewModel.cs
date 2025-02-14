@@ -1381,7 +1381,7 @@ namespace DataSync.UI
         /// <param name="schema"></param>
         /// <param name="remoteTable"></param>
         /// <returns>bool</returns>
-        internal async Task<bool> PerformSQLUpdateAsync(string schema, string remoteTable)
+        internal async Task<bool> PerformSQLUpdateAsync(string schema, string remoteTable, string keyColumn, string spatialColumn)
         {
             // Get the name of the stored procedure to execute selection in SQL Server.
             string storedProcedureName = _updateStoredProcedure;
@@ -1393,8 +1393,8 @@ namespace DataSync.UI
             sqlCmd = sqlCmd.Append(string.Format("EXECUTE {0}", storedProcedureName));
             sqlCmd.Append(string.Format(" '{0}'", schema));
             sqlCmd.Append(string.Format(", '{0}'", remoteTable));
-            sqlCmd.Append(string.Format(", '{0}'", "SiteID"));
-            sqlCmd.Append(string.Format(", '{0}'", "Shape"));
+            sqlCmd.Append(string.Format(", '{0}'", keyColumn));
+            sqlCmd.Append(string.Format(", '{0}'", spatialColumn));
 
             try
             {
